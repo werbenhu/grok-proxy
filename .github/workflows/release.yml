@@ -39,7 +39,7 @@ jobs:
             os: ubuntu-22.04
           - platform: linux/arm64
             slug: linux-arm64
-            os: ubuntu-22.04
+            os: ubuntu-24.04-arm
           - platform: darwin/amd64
             slug: darwin-amd64
             os: macos-13
@@ -94,14 +94,6 @@ jobs:
             libwebkit2gtk-4.0-dev \
             libwebkit2gtk-4.1-dev \
             pkg-config
-
-      - name: Install cross toolchain (linux-arm64)
-        if: matrix.slug == 'linux-arm64'
-        run: |
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-          echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
-          echo "CXX=aarch64-linux-gnu-g++" >> "$GITHUB_ENV"
-          echo "CGO_ENABLED=1" >> "$GITHUB_ENV"
 
       - name: Install Wails CLI
         shell: bash
