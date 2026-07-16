@@ -22,30 +22,30 @@ env:
 
 jobs:
   build:
-    name: Build ${{ matrix.platform }}
+    name: Build ${{ matrix.slug }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: windows/amd64
+            slug: windows-amd64
             os: windows-latest
-            artifact: GrokProxy-windows-amd64.exe
           - platform: windows/arm64
+            slug: windows-arm64
             os: windows-latest
-            artifact: GrokProxy-windows-arm64.exe
           - platform: linux/amd64
+            slug: linux-amd64
             os: ubuntu-22.04
-            artifact: GrokProxy-linux-amd64
           - platform: linux/arm64
+            slug: linux-arm64
             os: ubuntu-22.04
-            artifact: GrokProxy-linux-arm64
           - platform: darwin/amd64
+            slug: darwin-amd64
             os: macos-13
-            artifact: GrokProxy-darwin-amd64.app.zip
           - platform: darwin/arm64
+            slug: darwin-arm64
             os: macos-14
-            artifact: GrokProxy-darwin-arm64.app.zip
 
     steps:
       - name: Checkout
@@ -95,12 +95,13 @@ jobs:
             libwebkit2gtk-4.1-dev \
             pkg-config
 
-      - name: Install cross toolchain (linux/arm64)
-        if: matrix.platform == 'linux/arm64'
+      - name: Install cross toolchain (linux-arm64)
+        if: matrix.slug == 'linux-arm64'
         run: |
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
           echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
           echo "CXX=aarch64-linux-gnu-g++" >> "$GITHUB_ENV"
+          echo "CGO_ENABLED=1" >> "$GITHUB_ENV"
 
       - name: Install Wails CLI
         shell: bash
@@ -127,51 +128,54 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          PLATFORM="${{ matrix.platform }}"
+          SLUG="${{ matrix.slug }}"
           VERSION="${{ steps.version.outputs.version }}"
 
-          case "${PLATFORM}" in
-            windows/*)
+          echo "build/bin contents:"
+          ls -laR build/bin || true
+
+          case "${SLUG}" in
+            windows-*)
               SRC="$(find build/bin -type f \( -name '*.exe' -o -name 'GrokProxy' \) | head -n 1)"
               if [ -z "${SRC}" ]; then
                 echo "Windows binary not found under build/bin" >&2
-                ls -laR build/bin || true
                 exit 1
               fi
-              OUT="dist/GrokProxy-${VERSION}-${PLATFORM////-}.exe"
+              OUT="dist/GrokProxy-${VERSION}-${SLUG}.exe"
               cp "${SRC}" "${OUT}"
               ;;
-            linux/*)
-              SRC="$(find build/bin -type f -name 'GrokProxy*' ! -name '*.zip' | head -n 1)"
+            linux-*)
+              SRC="$(find build/bin -type f -name 'GrokProxy*' ! -name '*.zip' ! -name '*.tar.gz' | head -n 1)"
               if [ -z "${SRC}" ]; then
                 echo "Linux binary not found under build/bin" >&2
-                ls -laR build/bin || true
                 exit 1
               fi
               chmod +x "${SRC}"
-              OUT="dist/GrokProxy-${VERSION}-${PLATFORM////-}"
-              cp "${SRC}" "${OUT}"
-              (cd dist && tar -czf "GrokProxy-${VERSION}-${PLATFORM////-}.tar.gz" "$(basename "${OUT}")")
-              rm -f "${OUT}"
+              BIN_NAME="GrokProxy-${VERSION}-${SLUG}"
+              cp "${SRC}" "dist/${BIN_NAME}"
+              (cd dist && tar -czf "${BIN_NAME}.tar.gz" "${BIN_NAME}")
+              rm -f "dist/${BIN_NAME}"
               ;;
-            darwin/*)
+            darwin-*)
               APP="$(find build/bin -type d -name '*.app' | head -n 1)"
-              if [ -z "${APP}" ]; then
-                # 某些版本可能直接输出二进制
+              if [ -n "${APP}" ]; then
+                OUT="dist/GrokProxy-${VERSION}-${SLUG}.app.zip"
+                (cd "$(dirname "${APP}")" && zip -qry "${GITHUB_WORKSPACE}/${OUT}" "$(basename "${APP}")")
+              else
                 BIN="$(find build/bin -type f -name 'GrokProxy*' | head -n 1)"
                 if [ -z "${BIN}" ]; then
                   echo "macOS artifact not found under build/bin" >&2
-                  ls -laR build/bin || true
                   exit 1
                 fi
-                OUT="dist/GrokProxy-${VERSION}-${PLATFORM////-}"
-                cp "${BIN}" "${OUT}"
-                (cd dist && tar -czf "GrokProxy-${VERSION}-${PLATFORM////-}.tar.gz" "$(basename "${OUT}")")
-                rm -f "${OUT}"
-              else
-                OUT="dist/GrokProxy-${VERSION}-${PLATFORM////-}.app.zip"
-                (cd "$(dirname "${APP}")" && zip -qry "${GITHUB_WORKSPACE}/${OUT}" "$(basename "${APP}")")
+                BIN_NAME="GrokProxy-${VERSION}-${SLUG}"
+                cp "${BIN}" "dist/${BIN_NAME}"
+                (cd dist && tar -czf "${BIN_NAME}.tar.gz" "${BIN_NAME}")
+                rm -f "dist/${BIN_NAME}"
               fi
+              ;;
+            *)
+              echo "Unknown platform slug: ${SLUG}" >&2
+              exit 1
               ;;
           esac
 
@@ -181,7 +185,7 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: GrokProxy-${{ steps.version.outputs.version }}-${{ matrix.platform }}
+          name: GrokProxy-${{ steps.version.outputs.version }}-${{ matrix.slug }}
           path: dist/*
           if-no-files-found: error
 
