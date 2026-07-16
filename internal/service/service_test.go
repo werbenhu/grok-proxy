@@ -125,7 +125,7 @@ func TestSaveCanRebindSamePortFromLoopbackAlias(t *testing.T) {
 	}
 }
 
-func TestCompleteOAuthPersistsCredentialAndStartsProxy(t *testing.T) {
+func TestCompleteOAuthPersistsCredentialWithoutStartingProxy(t *testing.T) {
 	cfg := config.Default()
 	cfg.ListenPort = freePort(t)
 	oauthClient := &fakeOAuth{token: auth.Token{AccessToken: "access", RefreshToken: "refresh", ExpiresAt: time.Now().Add(time.Hour)}}
@@ -134,9 +134,11 @@ func TestCompleteOAuthPersistsCredentialAndStartsProxy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = service.Stop(context.Background()) })
-	if !state.Running || !state.Config.HasOAuth || state.Config.AuthMode != config.AuthModeOAuth {
+	if state.Running || !state.Config.HasOAuth || state.Config.AuthMode != config.AuthModeOAuth {
 		t.Fatalf("state=%+v", state)
+	}
+	if state.Status != StatusStopped {
+		t.Fatalf("status=%s, want stopped until manual start", state.Status)
 	}
 	stored := service.store.Current()
 	if stored.OAuth.RefreshToken != "refresh" || stored.APIKey != "" {

@@ -98,14 +98,9 @@ root.innerHTML = `
           <label class="port"><span data-i18n="port"></span><input id="listen-port" type="number" min="1" max="65535" value="8181" /></label>
         </div>
         <label>
-          <span><span data-i18n="localKey"></span> <em data-i18n="optional"></em></span>
-          <input id="local-key" type="text" autocomplete="off" data-i18n-placeholder="localKeyPlaceholder" />
+          <span data-i18n="localKey"></span>
+          <input id="local-key" type="text" autocomplete="off" spellcheck="false" data-i18n-placeholder="localKeyPlaceholder" />
         </label>
-        <label class="check">
-          <input id="clear-local-key" type="checkbox" />
-          <span data-i18n="clearLocalKey"></span>
-        </label>
-
       </div>
 
       <button id="save-settings" class="button primary wide" data-i18n="saveSettings"></button>
@@ -154,7 +149,6 @@ type AuthTab = 'api_key' | 'device'
 let state: AppState | undefined
 let authorization: DeviceAuthorization | undefined
 let busy = false
-let savedLocalKey = ''
 let authTab: AuthTab = 'device'
 
 function switchAuthTab(tab: AuthTab) {
@@ -235,6 +229,11 @@ function render(next: AppState) {
   element<HTMLInputElement>('listen-host').value = next.config.listenHost
   element<HTMLInputElement>('listen-port').value = String(next.config.listenPort)
 
+  const localKeyInput = element<HTMLInputElement>('local-key')
+  if (document.activeElement !== localKeyInput) {
+    localKeyInput.value = next.config.localKey ?? ''
+  }
+
   element('api-key-hint').textContent = next.config.hasApiKey
     ? t('apiKeySaved', { hint: next.config.apiKeyHint ?? '' })
     : t('apiKeyUnset')
@@ -245,7 +244,7 @@ function render(next: AppState) {
     ? t('lastRequest', { time: new Date(next.stats.lastRequestAt).toLocaleTimeString() })
     : t('noRequests')
 
-  const key = next.config.hasLocalKey ? (savedLocalKey || '<LOCAL_PROXY_KEY>') : 'not-needed'
+  const key = next.config.localKey || '<LOCAL_PROXY_KEY>'
   element('openai-snippet').textContent = `OPENAI_BASE_URL=${next.openaiBaseUrl}\nOPENAI_API_KEY=${key}\nOPENAI_MODEL=grok-4.5`
   element('anthropic-snippet').textContent = `ANTHROPIC_BASE_URL=${next.anthropicBaseUrl}\nANTHROPIC_API_KEY=${key}\nANTHROPIC_MODEL=grok-4.5`
 
@@ -323,25 +322,20 @@ element('save-api-key').addEventListener('click', () => {
 })
 
 element('save-settings').addEventListener('click', () => {
-  const local = element<HTMLInputElement>('local-key')
-  const localKeyValue = local.value.trim()
-  const clearLocalKey = element<HTMLInputElement>('clear-local-key').checked
+  const localKeyValue = element<HTMLInputElement>('local-key').value.trim()
+  if (!localKeyValue) {
+    showNotice(t('needLocalKey'), 'error')
+    return
+  }
   void run(
-    async () => {
-      const result = await api.save({
-        listenHost: element<HTMLInputElement>('listen-host').value.trim(),
-        listenPort: Number(element<HTMLInputElement>('listen-port').value),
-        authMode: state?.config.authMode ?? '',
-        localKey: localKeyValue,
-        clearLocalKey,
-      })
-      if (clearLocalKey) savedLocalKey = ''
-      else if (localKeyValue) savedLocalKey = localKeyValue
-      return result
-    },
+    () => api.save({
+      listenHost: element<HTMLInputElement>('listen-host').value.trim(),
+      listenPort: Number(element<HTMLInputElement>('listen-port').value),
+      authMode: state?.config.authMode ?? '',
+      localKey: localKeyValue,
+    }),
     'settingsSaved',
   )
-  local.value = ''
 })
 
 function setOAuthProgress(visible: boolean) {

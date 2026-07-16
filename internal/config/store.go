@@ -28,8 +28,11 @@ func (s *Store) Load() (Config, error) {
 	defer s.mu.Unlock()
 	data, err := os.ReadFile(s.path)
 	if os.IsNotExist(err) {
-		s.current = Default()
-		return s.current, nil
+		cfg := Default()
+		if err := s.saveLocked(cfg); err != nil {
+			return Config{}, err
+		}
+		return cfg, nil
 	}
 	if err != nil {
 		return Config{}, fmt.Errorf("读取配置: %w", err)
@@ -43,8 +46,15 @@ func (s *Store) Load() (Config, error) {
 	if err := ensureJSONEOF(decoder); err != nil {
 		return Config{}, err
 	}
+	cfg, filled := EnsureLocalKey(cfg)
 	if err := Validate(cfg); err != nil {
 		return Config{}, fmt.Errorf("校验配置: %w", err)
+	}
+	if filled {
+		if err := s.saveLocked(cfg); err != nil {
+			return Config{}, err
+		}
+		return cfg, nil
 	}
 	s.current = cfg
 	return cfg, nil

@@ -32,9 +32,8 @@ export type MessageKey =
   | 'listenHost'
   | 'port'
   | 'localKey'
-  | 'optional'
   | 'localKeyPlaceholder'
-  | 'clearLocalKey'
+  | 'needLocalKey'
   | 'saveSettings'
   | 'clientEyebrow'
   | 'copy'
@@ -61,9 +60,9 @@ export type MessageKey =
 
 const zh: Record<MessageKey, string> = {
   appSubtitle: 'Grok 本地兼容代理',
-  appSubtitleRunning: '代理运行中',
+  appSubtitleRunning: '代理已启动',
   statusLoading: '正在加载',
-  statusRunning: '运行中',
+  statusRunning: '已连接',
   statusWaiting: '等待配置',
   statusError: '启动失败',
   statusStopped: '已停止',
@@ -91,9 +90,8 @@ const zh: Record<MessageKey, string> = {
   listenHost: '监听地址',
   port: '端口',
   localKey: '本地代理密钥',
-  optional: '可选',
-  localKeyPlaceholder: '留空则保持不变',
-  clearLocalKey: '清除已保存的本地代理密钥',
+  localKeyPlaceholder: '16 位本地密钥',
+  needLocalKey: '本地代理密钥不能为空',
   saveSettings: '保存代理设置',
   clientEyebrow: '客户端',
   copy: '复制',
@@ -121,9 +119,9 @@ const zh: Record<MessageKey, string> = {
 
 const en: Record<MessageKey, string> = {
   appSubtitle: 'Local Grok-compatible proxy',
-  appSubtitleRunning: 'Proxy running',
+  appSubtitleRunning: 'Proxy started',
   statusLoading: 'Loading',
-  statusRunning: 'Running',
+  statusRunning: 'Connected',
   statusWaiting: 'Waiting setup',
   statusError: 'Failed',
   statusStopped: 'Stopped',
@@ -151,9 +149,8 @@ const en: Record<MessageKey, string> = {
   listenHost: 'Listen host',
   port: 'Port',
   localKey: 'Local proxy key',
-  optional: 'optional',
-  localKeyPlaceholder: 'Leave blank to keep current',
-  clearLocalKey: 'Clear saved local proxy key',
+  localKeyPlaceholder: '16-char local key',
+  needLocalKey: 'Local proxy key cannot be empty',
   saveSettings: 'Save proxy settings',
   clientEyebrow: 'Clients',
   copy: 'Copy',

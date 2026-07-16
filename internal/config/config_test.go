@@ -13,20 +13,52 @@ func TestDefaultIsValidAndLoopbackOnly(t *testing.T) {
 	if cfg.ListenHost != "127.0.0.1" || cfg.ListenPort != 8181 {
 		t.Fatalf("default address = %s:%d", cfg.ListenHost, cfg.ListenPort)
 	}
+	if len(cfg.LocalKey) != LocalKeyLength {
+		t.Fatalf("default local key length = %d, want %d", len(cfg.LocalKey), LocalKeyLength)
+	}
 	if err := Validate(cfg); err != nil {
 		t.Fatalf("default config invalid: %v", err)
 	}
 }
 
-func TestValidateRequiresKeyOutsideLoopback(t *testing.T) {
+func TestValidateRequiresLocalKey(t *testing.T) {
 	cfg := Default()
-	cfg.ListenHost = "0.0.0.0"
-	if err := Validate(cfg); err == nil || !strings.Contains(err.Error(), "本地代理密钥") {
-		t.Fatalf("expected local key error, got %v", err)
+	cfg.LocalKey = ""
+	if err := Validate(cfg); err == nil || !strings.Contains(err.Error(), "本地代理密钥不能为空") {
+		t.Fatalf("expected empty local key error, got %v", err)
 	}
 	cfg.LocalKey = "shared-secret"
+	cfg.ListenHost = "0.0.0.0"
 	if err := Validate(cfg); err != nil {
 		t.Fatalf("non-loopback with key: %v", err)
+	}
+}
+
+func TestGenerateLocalKeyLengthAndCharset(t *testing.T) {
+	key := GenerateLocalKey(LocalKeyLength)
+	if len(key) != LocalKeyLength {
+		t.Fatalf("len = %d", len(key))
+	}
+	for _, r := range key {
+		if !strings.ContainsRune(localKeyAlphabet, r) {
+			t.Fatalf("unexpected rune %q in %q", r, key)
+		}
+	}
+	other := GenerateLocalKey(LocalKeyLength)
+	if key == other {
+		t.Fatal("expected different random keys")
+	}
+}
+
+func TestEnsureLocalKeyFillsEmpty(t *testing.T) {
+	cfg := Config{ListenHost: "127.0.0.1", ListenPort: 8181}
+	next, filled := EnsureLocalKey(cfg)
+	if !filled || len(next.LocalKey) != LocalKeyLength {
+		t.Fatalf("filled=%v key=%q", filled, next.LocalKey)
+	}
+	same, filledAgain := EnsureLocalKey(next)
+	if filledAgain || same.LocalKey != next.LocalKey {
+		t.Fatalf("should keep existing key: filled=%v key=%q", filledAgain, same.LocalKey)
 	}
 }
 
@@ -56,7 +88,7 @@ func TestValidateRejectsInvalidValues(t *testing.T) {
 	}
 }
 
-func TestPublicNeverExposesSecrets(t *testing.T) {
+func TestPublicNeverExposesUpstreamSecrets(t *testing.T) {
 	cfg := Default()
 	cfg.AuthMode = AuthModeAPIKey
 	cfg.APIKey = "xai-secret-value"
@@ -66,7 +98,8 @@ func TestPublicNeverExposesSecrets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, secret := range []string{"xai-secret-value", "local-secret-value", "access-secret", "refresh-secret"} {
+	// Local proxy key is intentionally returned for desktop UI/snippets.
+	for _, secret := range []string{"xai-secret-value", "access-secret", "refresh-secret"} {
 		if bytes.Contains(encoded, []byte(secret)) {
 			t.Fatalf("secret %q leaked: %s", secret, encoded)
 		}
@@ -77,5 +110,8 @@ func TestPublicNeverExposesSecrets(t *testing.T) {
 	}
 	if public.APIKeyHint != "xai-••••alue" {
 		t.Fatalf("hint = %q", public.APIKeyHint)
+	}
+	if public.LocalKey != "local-secret-value" {
+		t.Fatalf("local key = %q", public.LocalKey)
 	}
 }

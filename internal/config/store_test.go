@@ -30,22 +30,37 @@ func TestStoreSaveAndLoadRoundTrip(t *testing.T) {
 	}
 }
 
-func TestStoreLoadMissingFileCreatesDefaultsInMemory(t *testing.T) {
+func TestStoreLoadMissingFileCreatesDefaultsAndPersists(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 	store := NewStore(path)
 	got, err := store.Load()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != Default() {
+	if got.ListenHost != "127.0.0.1" || got.ListenPort != 8181 {
 		t.Fatalf("got = %+v", got)
+	}
+	if len(got.LocalKey) != LocalKeyLength {
+		t.Fatalf("local key = %q", got.LocalKey)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("expected default config file: %v", err)
+	}
+	// Reload should keep the same generated key.
+	loaded, err := NewStore(path).Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.LocalKey != got.LocalKey {
+		t.Fatalf("persisted key changed: %q vs %q", loaded.LocalKey, got.LocalKey)
 	}
 }
 
 func TestStoreRejectsInvalidFileWithoutChangingCurrent(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 	store := NewStore(path)
-	if _, err := store.Load(); err != nil {
+	initial, err := store.Load()
+	if err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(path, []byte(`{"listenPort":0}`), 0o600); err != nil {
@@ -54,7 +69,7 @@ func TestStoreRejectsInvalidFileWithoutChangingCurrent(t *testing.T) {
 	if _, err := store.Load(); err == nil {
 		t.Fatal("expected invalid config error")
 	}
-	if current := store.Current(); current != Default() {
+	if current := store.Current(); current != initial {
 		t.Fatalf("current changed = %+v", current)
 	}
 }
@@ -76,8 +91,33 @@ func TestStoreBacksUpInvalidFileAndResets(t *testing.T) {
 		t.Fatalf("backup: %v", err)
 	}
 	cfg, err := store.Load()
-	if err != nil || cfg != Default() {
-		t.Fatalf("cfg=%+v err=%v", cfg, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.ListenHost != "127.0.0.1" || cfg.ListenPort != 8181 || len(cfg.LocalKey) != LocalKeyLength {
+		t.Fatalf("cfg=%+v", cfg)
+	}
+}
+
+func TestStoreFillsMissingLocalKeyOnLoad(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(path, []byte(`{"listenHost":"127.0.0.1","listenPort":8181}`+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	store := NewStore(path)
+	cfg, err := store.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.LocalKey) != LocalKeyLength {
+		t.Fatalf("local key = %q", cfg.LocalKey)
+	}
+	loaded, err := NewStore(path).Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.LocalKey != cfg.LocalKey {
+		t.Fatalf("filled key not persisted: %q vs %q", loaded.LocalKey, cfg.LocalKey)
 	}
 }
 

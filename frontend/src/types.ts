@@ -7,6 +7,7 @@ export interface PublicConfig {
   hasOAuth: boolean
   hasLocalKey: boolean
   apiKeyHint?: string
+  localKey?: string
   localKeyHint?: string
   oauthExpires?: string
 }
@@ -35,7 +36,6 @@ export interface Settings {
   authMode: string
   apiKey?: string
   localKey?: string
-  clearLocalKey?: boolean
 }
 
 export interface DeviceAuthorization {

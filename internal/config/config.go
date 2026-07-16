@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"net"
@@ -12,7 +13,13 @@ const (
 	AuthModeNone   = ""
 	AuthModeAPIKey = "api_key"
 	AuthModeOAuth  = "oauth"
+
+	// LocalKeyLength is the default generated local proxy key size.
+	LocalKeyLength = 16
 )
+
+// localKeyAlphabet is URL/header-safe and easy to copy.
+const localKeyAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 type OAuth struct {
 	AccessToken  string    `json:"accessToken,omitempty"`
@@ -38,12 +45,43 @@ type PublicConfig struct {
 	HasOAuth      bool   `json:"hasOAuth"`
 	HasLocalKey   bool   `json:"hasLocalKey"`
 	APIKeyHint    string `json:"apiKeyHint,omitempty"`
+	LocalKey      string `json:"localKey,omitempty"`
 	LocalKeyHint  string `json:"localKeyHint,omitempty"`
 	OAuthExpires  string `json:"oauthExpires,omitempty"`
 }
 
 func Default() Config {
-	return Config{ListenHost: "127.0.0.1", ListenPort: 8181}
+	return Config{
+		ListenHost: "127.0.0.1",
+		ListenPort: 8181,
+		LocalKey:   GenerateLocalKey(LocalKeyLength),
+	}
+}
+
+// GenerateLocalKey returns a cryptographically random key of the given length.
+func GenerateLocalKey(length int) string {
+	if length <= 0 {
+		length = LocalKeyLength
+	}
+	buf := make([]byte, length)
+	if _, err := rand.Read(buf); err != nil {
+		// Extremely unlikely; fall back to a time-based non-empty key.
+		return fmt.Sprintf("%016x", time.Now().UnixNano())[:length]
+	}
+	out := make([]byte, length)
+	for i, b := range buf {
+		out[i] = localKeyAlphabet[int(b)%len(localKeyAlphabet)]
+	}
+	return string(out)
+}
+
+// EnsureLocalKey fills an empty local key and reports whether it changed.
+func EnsureLocalKey(cfg Config) (Config, bool) {
+	if strings.TrimSpace(cfg.LocalKey) != "" {
+		return cfg, false
+	}
+	cfg.LocalKey = GenerateLocalKey(LocalKeyLength)
+	return cfg, true
 }
 
 func Validate(cfg Config) error {
@@ -57,8 +95,8 @@ func Validate(cfg Config) error {
 	if cfg.ListenPort < 1 || cfg.ListenPort > 65535 {
 		return errors.New("监听端口必须在 1 到 65535 之间")
 	}
-	if !isLoopback(host) && strings.TrimSpace(cfg.LocalKey) == "" {
-		return errors.New("非回环监听必须设置本地代理密钥")
+	if strings.TrimSpace(cfg.LocalKey) == "" {
+		return errors.New("本地代理密钥不能为空")
 	}
 	switch cfg.AuthMode {
 	case AuthModeNone:
@@ -96,11 +134,12 @@ func (cfg Config) Public() PublicConfig {
 	if !cfg.OAuth.ExpiresAt.IsZero() {
 		oauthExpires = cfg.OAuth.ExpiresAt.UTC().Format(time.RFC3339)
 	}
+	localKey := strings.TrimSpace(cfg.LocalKey)
 	return PublicConfig{
 		ListenHost: cfg.ListenHost, ListenPort: cfg.ListenPort, AuthMode: cfg.AuthMode,
 		HasCredential: (cfg.AuthMode == AuthModeAPIKey && hasAPIKey) || (cfg.AuthMode == AuthModeOAuth && hasOAuth),
-		HasAPIKey:     hasAPIKey, HasOAuth: hasOAuth, HasLocalKey: strings.TrimSpace(cfg.LocalKey) != "",
-		APIKeyHint: mask(cfg.APIKey), LocalKeyHint: mask(cfg.LocalKey), OAuthExpires: oauthExpires,
+		HasAPIKey:     hasAPIKey, HasOAuth: hasOAuth, HasLocalKey: localKey != "",
+		APIKeyHint: mask(cfg.APIKey), LocalKey: localKey, LocalKeyHint: mask(cfg.LocalKey), OAuthExpires: oauthExpires,
 	}
 }
 

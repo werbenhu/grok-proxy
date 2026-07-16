@@ -52,9 +52,7 @@ func (a *App) startup(ctx context.Context) {
 	if a.configWarning != "" {
 		runtime.LogWarning(ctx, a.configWarning)
 	}
-	if err := a.service.Start(ctx); err != nil {
-		runtime.LogErrorf(ctx, "启动代理失败: %v", err)
-	}
+	// Proxy must be started manually from the UI.
 }
 
 func (a *App) shutdown(ctx context.Context) { _ = a.service.Stop(ctx) }

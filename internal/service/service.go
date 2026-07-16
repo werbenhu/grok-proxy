@@ -146,7 +146,9 @@ func (s *Service) Save(ctx context.Context, input Settings) (State, error) {
 		s.mu.Unlock()
 		return s.State(), nil
 	}
-	if running && old.ListenPort == candidate.ListenPort && candidate.Public().HasCredential {
+	// Proxy is running and the listen address changed: rebind in place.
+	// Keep the old listener if the new port/host cannot be bound.
+	if running && candidate.Public().HasCredential {
 		oldServer := s.server
 		if s.listener != nil {
 			_ = s.listener.Close()
@@ -181,37 +183,19 @@ func (s *Service) Save(ctx context.Context, input Settings) (State, error) {
 		shutdownServer(ctx, oldServer)
 		return s.State(), nil
 	}
-	var listener net.Listener
-	var err error
-	if candidate.Public().HasCredential {
-		listener, err = net.Listen("tcp", candidate.Address())
-	}
-	if err != nil {
-		s.lastError = err.Error()
-		s.mu.Unlock()
-		return s.State(), fmt.Errorf("监听 %s: %w", candidate.Address(), err)
-	}
+
+	// Not running: save only; never auto-start.
 	if err := s.store.Save(candidate); err != nil {
-		if listener != nil {
-			_ = listener.Close()
-		}
 		s.mu.Unlock()
 		return s.State(), err
 	}
-	oldServer := s.server
-	s.server, s.listener, s.slot, s.handler = nil, nil, nil, nil
-	if listener != nil {
-		s.startLocked(candidate, listener)
+	if candidate.Public().HasCredential {
+		s.status = StatusStopped
 	} else {
 		s.status = StatusWaiting
-		s.lastError = ""
 	}
+	s.lastError = ""
 	s.mu.Unlock()
-	if oldServer != nil {
-		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-		_ = oldServer.Shutdown(shutdownCtx)
-		cancel()
-	}
 	return s.State(), nil
 }
 
@@ -250,9 +234,8 @@ func applySettings(current config.Config, input Settings) config.Config {
 	if input.LocalKey != "" {
 		next.LocalKey = strings.TrimSpace(input.LocalKey)
 	}
-	if input.ClearLocalKey {
-		next.LocalKey = ""
-	}
+	// Local proxy key is required; ignore clear requests and keep the current key
+	// when the field is left blank so existing configs stay usable.
 	if next.AuthMode == config.AuthModeAPIKey && input.APIKey != "" {
 		next.OAuth = config.OAuth{}
 	}
@@ -287,20 +270,18 @@ func (s *Service) CompleteOAuth(ctx context.Context, deviceCode string) (State, 
 		return s.State(), err
 	}
 	s.mu.Lock()
-	running := s.server != nil
-	if running {
+	// Refresh the running proxy handler if already started; do not auto-start.
+	if s.server != nil {
 		cfg := s.store.Current()
 		handler := proxy.New(cfg, s.upstream)
 		s.slot.Store(handler)
 		s.handler = handler
 		s.status, s.lastError = StatusRunning, ""
+	} else if s.store.Current().Public().HasCredential {
+		s.status = StatusStopped
+		s.lastError = ""
 	}
 	s.mu.Unlock()
-	if !running {
-		if err := s.Start(ctx); err != nil {
-			return s.State(), err
-		}
-	}
 	return s.State(), nil
 }
 
