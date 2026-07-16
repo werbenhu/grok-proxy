@@ -2,9 +2,9 @@
 
 [English](README.en.md) | 简体中文
 
-GrokProxy 是一个轻量化的 Go + Wails 桌面代理：连接 Grok / xAI，在本机提供 OpenAI Chat Completions 与 Anthropic Messages 兼容接口。
+连接 Grok / xAI，在本机提供 OpenAI Chat Completions 与 Anthropic Messages 兼容接口。
 
-应用默认只监听 `127.0.0.1:8181`，关闭桌面程序即停止代理。
+默认监听 `127.0.0.1:8181`，关闭程序即停止代理。
 
 ## 能力
 

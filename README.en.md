@@ -2,9 +2,9 @@
 
 English | [简体中文](README.md)
 
-GrokProxy is a lightweight Go + Wails desktop proxy: it connects to Grok / xAI and exposes OpenAI Chat Completions and Anthropic Messages compatible endpoints on your local machine.
+Connect Grok / xAI and expose OpenAI Chat Completions and Anthropic Messages compatible endpoints on your local machine.
 
-The app listens on `127.0.0.1:8181` by default; closing the desktop program stops the proxy.
+Listens on `127.0.0.1:8181` by default; closing the app stops the proxy.
 
 ## Features
 
