@@ -2,7 +2,7 @@
 
 [English](README.en.md) | 简体中文
 
-连接 Grok / xAI，在本机提供 OpenAI Chat Completions 与 Anthropic Messages 兼容接口。
+GrokProxy — 在本地为 Grok/xAI 提供 OpenAI 与 Anthropic 兼容 API。
 
 默认监听 `127.0.0.1:8181`，关闭程序即停止代理。
 

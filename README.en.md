@@ -2,7 +2,7 @@
 
 English | [简体中文](README.md)
 
-Connect Grok / xAI and expose OpenAI Chat Completions and Anthropic Messages compatible endpoints on your local machine.
+GrokProxy — Expose OpenAI & Anthropic compatible APIs for Grok/xAI, locally on your machine.
 
 Listens on `127.0.0.1:8181` by default; closing the app stops the proxy.
 
