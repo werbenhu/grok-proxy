@@ -79,7 +79,3 @@ Configuration is stored in the user config directory:
 - Linux: `$XDG_CONFIG_HOME/GrokProxy/config.json` or `~/.config/GrokProxy/config.json`
 
 With the default loopback listener, no local proxy key is required; when listening on `0.0.0.0`, a LAN IP, or any non-loopback address, the app requires a local proxy key.
-
-## License
-
-[MIT](LICENSE)

@@ -79,7 +79,3 @@ curl http://127.0.0.1:8181/v1/messages \
 - Linux：`$XDG_CONFIG_HOME/GrokProxy/config.json` 或 `~/.config/GrokProxy/config.json`
 
 默认回环监听可不设置本地代理密钥；监听 `0.0.0.0`、局域网 IP 或其他非回环地址时，应用会强制要求本地代理密钥。
-
-## License
-
-[MIT](LICENSE)
