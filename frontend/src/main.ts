@@ -211,6 +211,13 @@ function statusLabel(next: AppState): string {
   return t('statusStopped')
 }
 
+function hasSettingsDraft() {
+  if (!state) return false
+  return element<HTMLInputElement>('listen-host').value.trim() !== state.config.listenHost
+    || Number(element<HTMLInputElement>('listen-port').value) !== state.config.listenPort
+    || element<HTMLInputElement>('local-key').value.trim() !== (state.config.localKey ?? '')
+}
+
 function render(next: AppState) {
   state = next
   applyStaticI18n()
@@ -226,12 +233,10 @@ function render(next: AppState) {
   toggle.className = `button ${next.running ? 'danger' : 'primary'}`
   toggle.disabled = busy || !next.config.hasCredential
 
-  element<HTMLInputElement>('listen-host').value = next.config.listenHost
-  element<HTMLInputElement>('listen-port').value = String(next.config.listenPort)
-
-  const localKeyInput = element<HTMLInputElement>('local-key')
-  if (document.activeElement !== localKeyInput) {
-    localKeyInput.value = next.config.localKey ?? ''
+  if (!hasSettingsDraft()) {
+    element<HTMLInputElement>('listen-host').value = next.config.listenHost
+    element<HTMLInputElement>('listen-port').value = String(next.config.listenPort)
+    element<HTMLInputElement>('local-key').value = next.config.localKey ?? ''
   }
 
   element('api-key-hint').textContent = next.config.hasApiKey
