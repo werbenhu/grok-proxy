@@ -70,8 +70,6 @@ curl http://127.0.0.1:8181/v1/messages \
 
 If you set a local proxy key, replace `not-needed` with that key. OpenAI requests use `Authorization: Bearer <key>`; Anthropic requests may use `x-api-key: <key>`.
 
-See [docs/api.md](docs/api.md) for the full protocol reference.
-
 ## Configuration & security
 
 Configuration is stored in the user config directory:

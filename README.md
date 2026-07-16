@@ -70,8 +70,6 @@ curl http://127.0.0.1:8181/v1/messages \
 
 如果设置了本地代理密钥，把示例中的 `not-needed` 换成该密钥。OpenAI 请求使用 `Authorization: Bearer <key>`，Anthropic 请求可使用 `x-api-key: <key>`。
 
-完整协议说明见 [docs/api.md](docs/api.md)。
-
 ## 配置与安全
 
 配置保存在系统用户配置目录：
