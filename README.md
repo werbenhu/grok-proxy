@@ -25,8 +25,6 @@ GrokProxy — 在本地为 Grok/xAI 提供 OpenAI 与 Anthropic 兼容 API。
 | Windows ARM64 | `GrokProxy-*-windows-arm64.exe` |
 | macOS Intel | `GrokProxy-*-darwin-amd64.app.zip` |
 | macOS Apple Silicon | `GrokProxy-*-darwin-arm64.app.zip` |
-| Linux x64 | `GrokProxy-*-linux-amd64.tar.gz` |
-| Linux ARM64 | `GrokProxy-*-linux-arm64.tar.gz` |
 
 macOS 首次打开若被拦截，可在访达中右键应用选择「打开」，或在「系统设置 → 隐私与安全性」中允许。
 

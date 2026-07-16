@@ -25,8 +25,6 @@ Get the desktop app for your platform from [Releases](../../releases):
 | Windows ARM64 | `GrokProxy-*-windows-arm64.exe` |
 | macOS Intel | `GrokProxy-*-darwin-amd64.app.zip` |
 | macOS Apple Silicon | `GrokProxy-*-darwin-arm64.app.zip` |
-| Linux x64 | `GrokProxy-*-linux-amd64.tar.gz` |
-| Linux ARM64 | `GrokProxy-*-linux-arm64.tar.gz` |
 
 On macOS, if Gatekeeper blocks the first launch, right-click the app in Finder and choose **Open**, or allow it under **System Settings → Privacy & Security**.
 

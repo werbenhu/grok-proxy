@@ -34,12 +34,6 @@ jobs:
           - platform: windows/arm64
             slug: windows-arm64
             os: windows-latest
-          - platform: linux/amd64
-            slug: linux-amd64
-            os: ubuntu-22.04
-          - platform: linux/arm64
-            slug: linux-arm64
-            os: ubuntu-24.04-arm
           - platform: darwin/amd64
             slug: darwin-amd64
             os: macos-13
@@ -84,30 +78,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
-      - name: Install Linux dependencies
-        if: runner.os == 'Linux'
-        run: |
-          if [ "${{ matrix.slug }}" = "linux-arm64" ]; then
-            sudo find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) \
-              -exec sed -i 's|http://ports.ubuntu.com/ubuntu-ports|https://ports.ubuntu.com/ubuntu-ports|g' {} +
-            WEBKIT_PACKAGE="libwebkit2gtk-4.1-dev"
-          else
-            WEBKIT_PACKAGE="libwebkit2gtk-4.0-dev"
-          fi
-
-          sudo apt-get \
-            -o Acquire::Retries=3 \
-            -o Acquire::ForceIPv4=true \
-            update
-          sudo apt-get \
-            -o Acquire::Retries=3 \
-            -o Acquire::ForceIPv4=true \
-            install -y \
-            build-essential \
-            libgtk-3-dev \
-            "${WEBKIT_PACKAGE}" \
-            pkg-config
-
       - name: Install Wails CLI
         shell: bash
         run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
@@ -121,12 +91,7 @@ jobs:
           export PATH="$(go env GOPATH)/bin:$PATH"
           VERSION="${{ steps.version.outputs.version }}"
           LDFLAGS="-s -w -X main.version=${VERSION}"
-          WAILS_TAGS=()
-          if [ "${{ matrix.slug }}" = "linux-arm64" ]; then
-            WAILS_TAGS=(-tags webkit2_41)
-          fi
           wails build \
-            "${WAILS_TAGS[@]}" \
             -clean \
             -trimpath \
             -platform "${{ matrix.platform }}" \
@@ -153,18 +118,6 @@ jobs:
               fi
               OUT="dist/GrokProxy-${VERSION}-${SLUG}.exe"
               cp "${SRC}" "${OUT}"
-              ;;
-            linux-*)
-              SRC="$(find build/bin -type f -name 'GrokProxy*' ! -name '*.zip' ! -name '*.tar.gz' | head -n 1)"
-              if [ -z "${SRC}" ]; then
-                echo "Linux binary not found under build/bin" >&2
-                exit 1
-              fi
-              chmod +x "${SRC}"
-              BIN_NAME="GrokProxy-${VERSION}-${SLUG}"
-              cp "${SRC}" "dist/${BIN_NAME}"
-              (cd dist && tar -czf "${BIN_NAME}.tar.gz" "${BIN_NAME}")
-              rm -f "dist/${BIN_NAME}"
               ;;
             darwin-*)
               APP="$(find build/bin -type d -name '*.app' | head -n 1)"

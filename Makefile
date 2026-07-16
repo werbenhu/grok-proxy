@@ -1,6 +1,6 @@
 # GrokProxy Makefile
 #
-# 目标平台：linux / darwin (macOS) / windows，默认 amd64 与 arm64 双架构。
+# 目标平台：darwin (macOS) / windows，默认 amd64 与 arm64 双架构。
 # 交叉编译通过 Wails 的 -platform 参数完成，产物写入 build/bin。
 
 WAILS      ?= wails
@@ -8,7 +8,7 @@ PNPM       ?= pnpm
 GO         ?= go
 
 # 平台与架构矩阵：用空格分隔多个 target，每个 target 形如 os/arch。
-PLATFORMS   ?= linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64
+PLATFORMS   ?= darwin/amd64 darwin/arm64 windows/amd64 windows/arm64
 
 # 版本号：优先读 VERSION 文件，回退到 git describe。
 VERSION    := $(shell cat VERSION 2>/dev/null | tr -d '[:space:]')
