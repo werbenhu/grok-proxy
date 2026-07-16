@@ -18,15 +18,17 @@ func main() {
 		log.Fatal(err)
 	}
 	if err := wails.Run(&options.App{
-		Title:            "GrokProxy",
-		Width:            980,
-		Height:           560,
-		DisableResize:    true,
-		AssetServer:      &assetserver.Options{Assets: assets},
-		BackgroundColour: &options.RGBA{R: 11, G: 15, B: 15, A: 1},
-		OnStartup:        app.startup,
-		OnShutdown:       app.shutdown,
-		Bind:             []any{app},
+		Title:             "GrokProxy",
+		Width:             980,
+		Height:            560,
+		DisableResize:     true,
+		AssetServer:       &assetserver.Options{Assets: assets},
+		BackgroundColour:  &options.RGBA{R: 11, G: 15, B: 15, A: 1},
+		OnStartup:         app.startup,
+		OnShutdown:        app.shutdown,
+		OnBeforeClose:     app.beforeClose,
+		HideWindowOnClose: true,
+		Bind:              []any{app},
 	}); err != nil {
 		log.Fatal(err)
 	}

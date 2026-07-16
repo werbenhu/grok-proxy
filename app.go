@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/energye/systray"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"github.com/werbenhu/grok-proxy/internal/auth"
 	"github.com/werbenhu/grok-proxy/internal/config"
@@ -52,7 +53,33 @@ func (a *App) startup(ctx context.Context) {
 	if a.configWarning != "" {
 		runtime.LogWarning(ctx, a.configWarning)
 	}
+	a.initSystray()
 	// Proxy must be started manually from the UI.
+}
+
+func (a *App) beforeClose(ctx context.Context) bool {
+	runtime.WindowHide(ctx)
+	return true
+}
+
+func (a *App) initSystray() {
+	go systray.Run(func() {
+		systray.SetIcon(trayIcon)
+		systray.SetTooltip("GrokProxy")
+
+		mShow := systray.AddMenuItem("打开主界面", "")
+		systray.AddSeparator()
+		mQuit := systray.AddMenuItem("退出", "")
+
+		mShow.Click(func() {
+			runtime.WindowShow(a.ctx)
+			runtime.WindowUnminimise(a.ctx)
+		})
+		mQuit.Click(func() {
+			systray.Quit()
+			runtime.Quit(a.ctx)
+		})
+	}, nil)
 }
 
 func (a *App) shutdown(ctx context.Context) { _ = a.service.Stop(ctx) }
