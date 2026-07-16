@@ -10,14 +10,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/werbenhu/grok-proxy/internal/config"
 	"github.com/werbenhu/grok-proxy/internal/upstream"
 )
 
 func TestOpenAIJSONConversion(t *testing.T) {
 	up := &fakeUpstream{responses: jsonResponse(`{"id":"resp_1","model":"grok-4","status":"completed","created_at":123,"output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"hello"}]}],"usage":{"input_tokens":3,"output_tokens":1}}`)}
-	handler := New(config.Default(), up)
-	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"grok-4","messages":[{"role":"user","content":"hi"}]}`))
+	cfg := testConfig()
+	handler := New(cfg, up)
+	req := authenticatedRequest(cfg, http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"grok-4","messages":[{"role":"user","content":"hi"}]}`))
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"object":"chat.completion"`) || !strings.Contains(rec.Body.String(), `"content":"hello"`) {
@@ -34,14 +34,15 @@ func TestOpenAIJSONConversion(t *testing.T) {
 
 func TestMessagesRequiresVersionAndConvertsJSON(t *testing.T) {
 	up := &fakeUpstream{responses: jsonResponse(`{"id":"resp_2","model":"grok-4","status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"hello"}]}],"usage":{"input_tokens":4,"output_tokens":2}}`)}
-	handler := New(config.Default(), up)
+	cfg := testConfig()
+	handler := New(cfg, up)
 	body := `{"model":"grok-4","max_tokens":64,"messages":[{"role":"user","content":"hi"}]}`
 	missing := httptest.NewRecorder()
-	handler.ServeHTTP(missing, httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(body)))
+	handler.ServeHTTP(missing, authenticatedRequest(cfg, http.MethodPost, "/v1/messages", strings.NewReader(body)))
 	if missing.Code != http.StatusBadRequest || !strings.Contains(missing.Body.String(), `"type":"error"`) {
 		t.Fatalf("missing=%d %s", missing.Code, missing.Body.String())
 	}
-	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(body))
+	req := authenticatedRequest(cfg, http.MethodPost, "/v1/messages", strings.NewReader(body))
 	req.Header.Set("anthropic-version", "2023-06-01")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -63,8 +64,9 @@ func TestOpenAIAndAnthropicStreams(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			up := &fakeUpstream{responses: streamResponse(stream)}
-			handler := New(config.Default(), up)
-			req := httptest.NewRequest(http.MethodPost, tt.path, strings.NewReader(tt.body))
+			cfg := testConfig()
+			handler := New(cfg, up)
+			req := authenticatedRequest(cfg, http.MethodPost, tt.path, strings.NewReader(tt.body))
 			if tt.anthropic {
 				req.Header.Set("anthropic-version", "2023-06-01")
 			}
@@ -78,16 +80,17 @@ func TestOpenAIAndAnthropicStreams(t *testing.T) {
 }
 
 func TestProtocolAndUpstreamErrorsUseDownstreamShape(t *testing.T) {
-	bad := New(config.Default(), &fakeUpstream{})
+	cfg := testConfig()
+	bad := New(cfg, &fakeUpstream{})
 	rec := httptest.NewRecorder()
-	bad.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"grok-4"}`)))
+	bad.ServeHTTP(rec, authenticatedRequest(cfg, http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"grok-4"}`)))
 	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), `"error"`) {
 		t.Fatalf("bad=%d %s", rec.Code, rec.Body.String())
 	}
 
 	upErr := &upstream.HTTPError{StatusCode: http.StatusUnauthorized, Body: []byte(`{"error":{"message":"bad upstream token"}}`)}
-	handler := New(config.Default(), &fakeUpstream{responses: func(context.Context, []byte, bool) (*http.Response, error) { return nil, upErr }})
-	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"grok-4","max_tokens":64,"messages":[{"role":"user","content":"hi"}]}`))
+	handler := New(cfg, &fakeUpstream{responses: func(context.Context, []byte, bool) (*http.Response, error) { return nil, upErr }})
+	req := authenticatedRequest(cfg, http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"grok-4","max_tokens":64,"messages":[{"role":"user","content":"hi"}]}`))
 	req.Header.Set("anthropic-version", "2023-06-01")
 	rec = httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -95,9 +98,9 @@ func TestProtocolAndUpstreamErrorsUseDownstreamShape(t *testing.T) {
 		t.Fatalf("upstream=%d %s", rec.Code, rec.Body.String())
 	}
 
-	generic := New(config.Default(), &fakeUpstream{responses: func(context.Context, []byte, bool) (*http.Response, error) { return nil, errors.New("network down") }})
+	generic := New(cfg, &fakeUpstream{responses: func(context.Context, []byte, bool) (*http.Response, error) { return nil, errors.New("network down") }})
 	rec = httptest.NewRecorder()
-	generic.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"grok-4","messages":[{"role":"user","content":"hi"}]}`)))
+	generic.ServeHTTP(rec, authenticatedRequest(cfg, http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"grok-4","messages":[{"role":"user","content":"hi"}]}`)))
 	if rec.Code != http.StatusBadGateway {
 		t.Fatalf("generic=%d %s", rec.Code, rec.Body.String())
 	}

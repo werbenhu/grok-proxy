@@ -13,19 +13,20 @@ import (
 
 func TestHealthAndModels(t *testing.T) {
 	up := &fakeUpstream{modelsBody: `{"object":"list","data":[{"id":"grok-4","object":"model"}]}`}
-	handler := New(config.Default(), up)
+	cfg := testConfig()
+	handler := New(cfg, up)
 	health := httptest.NewRecorder()
 	handler.ServeHTTP(health, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 	if health.Code != http.StatusOK || !strings.Contains(health.Body.String(), `"status":"ok"`) {
 		t.Fatalf("health=%d %s", health.Code, health.Body.String())
 	}
 	models := httptest.NewRecorder()
-	handler.ServeHTTP(models, httptest.NewRequest(http.MethodGet, "/v1/models", nil))
+	handler.ServeHTTP(models, authenticatedRequest(cfg, http.MethodGet, "/v1/models", nil))
 	if models.Code != http.StatusOK || models.Body.String() != up.modelsBody {
 		t.Fatalf("models=%d %s", models.Code, models.Body.String())
 	}
 	missing := httptest.NewRecorder()
-	handler.ServeHTTP(missing, httptest.NewRequest(http.MethodGet, "/missing", nil))
+	handler.ServeHTTP(missing, authenticatedRequest(cfg, http.MethodGet, "/missing", nil))
 	if missing.Code != http.StatusNotFound {
 		t.Fatalf("missing=%d", missing.Code)
 	}
@@ -73,18 +74,20 @@ func TestMessagesLocalKeyFailureUsesAnthropicError(t *testing.T) {
 }
 
 func TestMessagesWrongMethodUsesAnthropicError(t *testing.T) {
-	handler := New(config.Default(), &fakeUpstream{})
+	cfg := testConfig()
+	handler := New(cfg, &fakeUpstream{})
 	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/v1/messages", nil))
+	handler.ServeHTTP(recorder, authenticatedRequest(cfg, http.MethodGet, "/v1/messages", nil))
 	if recorder.Code != http.StatusMethodNotAllowed || !strings.Contains(recorder.Body.String(), `"type":"invalid_request_error"`) {
 		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
 	}
 }
 
 func TestBodyLimit(t *testing.T) {
-	handler := New(config.Default(), &fakeUpstream{})
+	cfg := testConfig()
+	handler := New(cfg, &fakeUpstream{})
 	body := strings.NewReader(strings.Repeat("x", maxRequestBodyBytes+1))
-	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", body)
+	req := authenticatedRequest(cfg, http.MethodPost, "/v1/chat/completions", body)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusRequestEntityTooLarge {
@@ -99,9 +102,10 @@ func TestRequestCancellationReachesUpstream(t *testing.T) {
 		close(canceled)
 		return nil, ctx.Err()
 	}}
-	handler := New(config.Default(), up)
+	cfg := testConfig()
+	handler := New(cfg, up)
 	ctx, cancel := context.WithCancel(context.Background())
-	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"grok-4","messages":[{"role":"user","content":"hi"}]}`)).WithContext(ctx)
+	req := authenticatedRequest(cfg, http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"grok-4","messages":[{"role":"user","content":"hi"}]}`)).WithContext(ctx)
 	done := make(chan struct{})
 	go func() { handler.ServeHTTP(httptest.NewRecorder(), req); close(done) }()
 	cancel()
@@ -114,6 +118,18 @@ type fakeUpstream struct {
 	responses  func(context.Context, []byte, bool) (*http.Response, error)
 	lastBody   []byte
 	lastStream bool
+}
+
+func testConfig() config.Config {
+	cfg := config.Default()
+	cfg.LocalKey = "test-local-key"
+	return cfg
+}
+
+func authenticatedRequest(cfg config.Config, method, target string, body io.Reader) *http.Request {
+	req := httptest.NewRequest(method, target, body)
+	req.Header.Set("Authorization", "Bearer "+cfg.LocalKey)
+	return req
 }
 
 func (f *fakeUpstream) Models(context.Context) (*http.Response, error) {

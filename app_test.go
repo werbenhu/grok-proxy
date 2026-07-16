@@ -48,12 +48,13 @@ func TestRequiredFrontendSourcesExist(t *testing.T) {
 	}
 }
 
-func TestAppStateNeverReturnsSecrets(t *testing.T) {
+func TestAppStateShowsLocalKeyAndRedactsUpstreamSecrets(t *testing.T) {
 	store := config.NewStore(filepath.Join(t.TempDir(), "config.json"))
 	cfg := config.Default()
 	cfg.AuthMode = config.AuthModeAPIKey
 	cfg.APIKey = "xai-super-secret"
 	cfg.LocalKey = "local-super-secret"
+	cfg.OAuth = config.OAuth{AccessToken: "oauth-access-secret", RefreshToken: "oauth-refresh-secret"}
 	if err := store.Save(cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -62,11 +63,15 @@ func TestAppStateNeverReturnsSecrets(t *testing.T) {
 		t.Fatal(err)
 	}
 	app := NewAppWithService(svc)
-	data, err := json.Marshal(app.GetState())
+	state := app.GetState()
+	if state.Config.LocalKey != cfg.LocalKey {
+		t.Fatalf("local key = %q, want %q", state.Config.LocalKey, cfg.LocalKey)
+	}
+	data, err := json.Marshal(state)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, secret := range []string{"xai-super-secret", "local-super-secret"} {
+	for _, secret := range []string{"xai-super-secret", "oauth-access-secret", "oauth-refresh-secret"} {
 		if strings.Contains(string(data), secret) {
 			t.Fatalf("secret leaked: %s", data)
 		}
