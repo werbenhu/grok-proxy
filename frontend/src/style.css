@@ -192,13 +192,13 @@ h1 { font-size: 17px; letter-spacing: -.02em; color: var(--text-heading); }
 .pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 0 12px;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   background: var(--panel-2);
 }
 
@@ -283,6 +283,13 @@ h1 { font-size: 17px; letter-spacing: -.02em; color: var(--text-heading); }
 }
 
 .wide { width: 100%; }
+
+#service-toggle.button {
+  min-height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+  border-radius: 999px;
+}
 
 .text-button {
   border: 0;
