@@ -1,0 +1,20 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "GrokProxy",
+  "outputfilename": "GrokProxy",
+  "frontend:install": "pnpm install --frozen-lockfile",
+  "frontend:build": "pnpm build",
+  "frontend:dev:watcher": "pnpm dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "GrokProxy Contributors",
+    "email": ""
+  },
+  "info": {
+    "companyName": "GrokProxy",
+    "productName": "GrokProxy",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright © 2026 GrokProxy Contributors",
+    "comments": "Local OpenAI and Anthropic compatible proxy for Grok"
+  }
+}

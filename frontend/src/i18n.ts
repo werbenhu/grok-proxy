@@ -1,0 +1,212 @@
+export type Locale = 'zh' | 'en'
+
+export type MessageKey =
+  | 'appSubtitle'
+  | 'appSubtitleRunning'
+  | 'statusLoading'
+  | 'statusRunning'
+  | 'statusWaiting'
+  | 'statusError'
+  | 'statusStopped'
+  | 'statusReauth'
+  | 'startProxy'
+  | 'stopProxy'
+  | 'connectGrok'
+  | 'apiKeyTitle'
+  | 'apiKeyDesc'
+  | 'save'
+  | 'apiKeyUnset'
+  | 'apiKeySaved'
+  | 'or'
+  | 'deviceAuthTitle'
+  | 'deviceAuthDesc'
+  | 'startOauth'
+  | 'oauthHint'
+  | 'copyCode'
+  | 'openOauth'
+  | 'oauthWaiting'
+  | 'oauthDone'
+  | 'testConnection'
+  | 'clearCreds'
+  | 'proxySettings'
+  | 'listenHost'
+  | 'port'
+  | 'localKey'
+  | 'optional'
+  | 'localKeyPlaceholder'
+  | 'clearLocalKey'
+  | 'saveSettings'
+  | 'clientEyebrow'
+  | 'copy'
+  | 'requests'
+  | 'active'
+  | 'noRequests'
+  | 'lastRequest'
+  | 'copied'
+  | 'needApiKey'
+  | 'apiKeySavedNotice'
+  | 'settingsSaved'
+  | 'proxyStarted'
+  | 'proxyStopped'
+  | 'oauthCompleted'
+  | 'oauthExpired'
+  | 'credsCleared'
+  | 'codeCopied'
+  | 'missingRoot'
+  | 'missingElement'
+  | 'themeLight'
+  | 'themeDark'
+  | 'themeSystem'
+  | 'themeLabel'
+
+const zh: Record<MessageKey, string> = {
+  appSubtitle: 'Grok 本地兼容代理',
+  appSubtitleRunning: '代理运行中',
+  statusLoading: '正在加载',
+  statusRunning: '运行中',
+  statusWaiting: '等待配置',
+  statusError: '启动失败',
+  statusStopped: '已停止',
+  statusReauth: '需重新授权',
+  startProxy: '启动代理',
+  stopProxy: '停止代理',
+  connectGrok: '连接 Grok',
+  apiKeyTitle: 'xAI API Key',
+  apiKeyDesc: '直接使用 api.x.ai，适合官方开发者密钥',
+  save: '保存',
+  apiKeyUnset: '尚未保存',
+  apiKeySaved: '已保存 {hint}',
+  or: '或',
+  deviceAuthTitle: '网站授权',
+  deviceAuthDesc: '通过 xAI 官方网站登录授权，无需复制 Cookie',
+  startOauth: '开始 Grok 授权',
+  oauthHint: '在打开的页面输入授权码',
+  copyCode: '复制授权码',
+  openOauth: '打开授权页',
+  oauthWaiting: '等待授权确认…',
+  oauthDone: '授权完成',
+  testConnection: '测试连接',
+  clearCreds: '清除凭据',
+  proxySettings: '代理设置',
+  listenHost: '监听地址',
+  port: '端口',
+  localKey: '本地代理密钥',
+  optional: '可选',
+  localKeyPlaceholder: '留空则保持不变',
+  clearLocalKey: '清除已保存的本地代理密钥',
+  saveSettings: '保存代理设置',
+  clientEyebrow: '客户端',
+  copy: '复制',
+  requests: '请求',
+  active: '活动',
+  noRequests: '尚无请求',
+  lastRequest: '最近请求 {time}',
+  copied: '已复制到剪贴板',
+  needApiKey: '请输入 xAI API Key',
+  apiKeySavedNotice: 'API Key 已保存',
+  settingsSaved: '代理设置已保存',
+  proxyStarted: '代理已启动',
+  proxyStopped: '代理已停止',
+  oauthCompleted: 'Grok 授权已完成',
+  oauthExpired: '授权已过期，请重新开始',
+  credsCleared: 'Grok 凭据已清除',
+  codeCopied: '授权码已复制',
+  missingRoot: '缺少应用根节点',
+  missingElement: '缺少界面元素 {id}',
+  themeLight: '浅色',
+  themeDark: '深色',
+  themeSystem: '跟随系统',
+  themeLabel: '主题',
+}
+
+const en: Record<MessageKey, string> = {
+  appSubtitle: 'Local Grok-compatible proxy',
+  appSubtitleRunning: 'Proxy running',
+  statusLoading: 'Loading',
+  statusRunning: 'Running',
+  statusWaiting: 'Waiting setup',
+  statusError: 'Failed',
+  statusStopped: 'Stopped',
+  statusReauth: 'Reauth needed',
+  startProxy: 'Start proxy',
+  stopProxy: 'Stop proxy',
+  connectGrok: 'Connect Grok',
+  apiKeyTitle: 'xAI API Key',
+  apiKeyDesc: 'Use api.x.ai directly with an official developer key',
+  save: 'Save',
+  apiKeyUnset: 'Not saved yet',
+  apiKeySaved: 'Saved {hint}',
+  or: 'or',
+  deviceAuthTitle: 'Site auth',
+  deviceAuthDesc: 'Sign in via the xAI official website — no cookie copy',
+  startOauth: 'Start Grok auth',
+  oauthHint: 'Enter this code on the opened page',
+  copyCode: 'Copy code',
+  openOauth: 'Open auth page',
+  oauthWaiting: 'Waiting for confirmation…',
+  oauthDone: 'Authorized',
+  testConnection: 'Test connection',
+  clearCreds: 'Clear credentials',
+  proxySettings: 'Proxy settings',
+  listenHost: 'Listen host',
+  port: 'Port',
+  localKey: 'Local proxy key',
+  optional: 'optional',
+  localKeyPlaceholder: 'Leave blank to keep current',
+  clearLocalKey: 'Clear saved local proxy key',
+  saveSettings: 'Save proxy settings',
+  clientEyebrow: 'Clients',
+  copy: 'Copy',
+  requests: 'Requests',
+  active: 'Active',
+  noRequests: 'No requests yet',
+  lastRequest: 'Last request {time}',
+  copied: 'Copied to clipboard',
+  needApiKey: 'Enter an xAI API Key',
+  apiKeySavedNotice: 'API Key saved',
+  settingsSaved: 'Proxy settings saved',
+  proxyStarted: 'Proxy started',
+  proxyStopped: 'Proxy stopped',
+  oauthCompleted: 'Grok authorization completed',
+  oauthExpired: 'Authorization expired — please start again',
+  credsCleared: 'Grok credentials cleared',
+  codeCopied: 'Auth code copied',
+  missingRoot: 'Missing app root',
+  missingElement: 'Missing UI element {id}',
+  themeLight: 'Light',
+  themeDark: 'Dark',
+  themeSystem: 'System',
+  themeLabel: 'Theme',
+}
+
+const catalogs: Record<Locale, Record<MessageKey, string>> = { zh, en }
+
+const STORAGE_KEY = 'grok-proxy.locale'
+
+export function detectLocale(): Locale {
+  const saved = localStorage.getItem(STORAGE_KEY)
+  if (saved === 'zh' || saved === 'en') return saved
+  return navigator.language.toLowerCase().startsWith('zh') ? 'zh' : 'en'
+}
+
+let current: Locale = detectLocale()
+
+export function getLocale(): Locale {
+  return current
+}
+
+export function setLocale(locale: Locale) {
+  current = locale
+  localStorage.setItem(STORAGE_KEY, locale)
+  document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en'
+}
+
+export function t(key: MessageKey, vars?: Record<string, string | number>): string {
+  let text = catalogs[current][key] ?? catalogs.en[key] ?? key
+  if (vars) {
+    for (const [name, value] of Object.entries(vars)) {
+      text = text.replaceAll(`{${name}}`, String(value))
+    }
+  }
+  return text
+}

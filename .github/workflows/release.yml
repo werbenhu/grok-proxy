@@ -1,0 +1,224 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "已有 tag 名称（如 v1.0.0）；留空则用当前 ref"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  GO_VERSION: "1.24.0"
+  NODE_VERSION: "22.12.0"
+  PNPM_VERSION: "10.33.4"
+  WAILS_VERSION: "v2.12.0"
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows/amd64
+            os: windows-latest
+            artifact: GrokProxy-windows-amd64.exe
+          - platform: windows/arm64
+            os: windows-latest
+            artifact: GrokProxy-windows-arm64.exe
+          - platform: linux/amd64
+            os: ubuntu-22.04
+            artifact: GrokProxy-linux-amd64
+          - platform: linux/arm64
+            os: ubuntu-22.04
+            artifact: GrokProxy-linux-arm64
+          - platform: darwin/amd64
+            os: macos-13
+            artifact: GrokProxy-darwin-amd64.app.zip
+          - platform: darwin/arm64
+            os: macos-14
+            artifact: GrokProxy-darwin-arm64.app.zip
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            VERSION="${{ inputs.tag }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME}"
+          else
+            VERSION="$(cat VERSION 2>/dev/null | tr -d '[:space:]')"
+            VERSION="${VERSION:-dev}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: ${VERSION}"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libgtk-3-dev \
+            libwebkit2gtk-4.0-dev \
+            libwebkit2gtk-4.1-dev \
+            pkg-config
+
+      - name: Install cross toolchain (linux/arm64)
+        if: matrix.platform == 'linux/arm64'
+        run: |
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+          echo "CXX=aarch64-linux-gnu-g++" >> "$GITHUB_ENV"
+
+      - name: Install Wails CLI
+        shell: bash
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
+
+      - name: Install frontend dependencies
+        run: pnpm --dir frontend install --frozen-lockfile
+
+      - name: Build
+        shell: bash
+        run: |
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          VERSION="${{ steps.version.outputs.version }}"
+          LDFLAGS="-s -w -X main.version=${VERSION}"
+          wails build \
+            -clean \
+            -trimpath \
+            -platform "${{ matrix.platform }}" \
+            -ldflags "${LDFLAGS}" \
+            -o "GrokProxy"
+
+      - name: Package artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          PLATFORM="${{ matrix.platform }}"
+          VERSION="${{ steps.version.outputs.version }}"
+
+          case "${PLATFORM}" in
+            windows/*)
+              SRC="$(find build/bin -type f \( -name '*.exe' -o -name 'GrokProxy' \) | head -n 1)"
+              if [ -z "${SRC}" ]; then
+                echo "Windows binary not found under build/bin" >&2
+                ls -laR build/bin || true
+                exit 1
+              fi
+              OUT="dist/GrokProxy-${VERSION}-${PLATFORM////-}.exe"
+              cp "${SRC}" "${OUT}"
+              ;;
+            linux/*)
+              SRC="$(find build/bin -type f -name 'GrokProxy*' ! -name '*.zip' | head -n 1)"
+              if [ -z "${SRC}" ]; then
+                echo "Linux binary not found under build/bin" >&2
+                ls -laR build/bin || true
+                exit 1
+              fi
+              chmod +x "${SRC}"
+              OUT="dist/GrokProxy-${VERSION}-${PLATFORM////-}"
+              cp "${SRC}" "${OUT}"
+              (cd dist && tar -czf "GrokProxy-${VERSION}-${PLATFORM////-}.tar.gz" "$(basename "${OUT}")")
+              rm -f "${OUT}"
+              ;;
+            darwin/*)
+              APP="$(find build/bin -type d -name '*.app' | head -n 1)"
+              if [ -z "${APP}" ]; then
+                # 某些版本可能直接输出二进制
+                BIN="$(find build/bin -type f -name 'GrokProxy*' | head -n 1)"
+                if [ -z "${BIN}" ]; then
+                  echo "macOS artifact not found under build/bin" >&2
+                  ls -laR build/bin || true
+                  exit 1
+                fi
+                OUT="dist/GrokProxy-${VERSION}-${PLATFORM////-}"
+                cp "${BIN}" "${OUT}"
+                (cd dist && tar -czf "GrokProxy-${VERSION}-${PLATFORM////-}.tar.gz" "$(basename "${OUT}")")
+                rm -f "${OUT}"
+              else
+                OUT="dist/GrokProxy-${VERSION}-${PLATFORM////-}.app.zip"
+                (cd "$(dirname "${APP}")" && zip -qry "${GITHUB_WORKSPACE}/${OUT}" "$(basename "${APP}")")
+              fi
+              ;;
+          esac
+
+          echo "Packaged files:"
+          ls -la dist
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: GrokProxy-${{ steps.version.outputs.version }}-${{ matrix.platform }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
+    steps:
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            VERSION="${{ inputs.tag }}"
+          else
+            VERSION="${GITHUB_REF_NAME}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          pattern: GrokProxy-${{ steps.version.outputs.version }}-*
+          merge-multiple: true
+
+      - name: List release assets
+        run: find release-assets -type f | sort
+
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: GrokProxy ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: release-assets/*
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

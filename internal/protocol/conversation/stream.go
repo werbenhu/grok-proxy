@@ -1,0 +1,310 @@
+package conversation
+
+import (
+	"bufio"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"strings"
+	"time"
+)
+
+const maxSSEEventBytes = 8 << 20
+
+// ConvertResponseStream 将 Responses SSE 转换为 Chat Completions 或 Anthropic Messages SSE。
+func ConvertResponseStream(source io.ReadCloser, operation string) io.ReadCloser {
+	return ConvertResponseStreamWithOptions(source, operation, ResponseOptions{})
+}
+
+// ConvertResponseStreamWithOptions 按原始 Messages 请求选项生成有序 Anthropic SSE。
+func ConvertResponseStreamWithOptions(source io.ReadCloser, operation string, options ResponseOptions) io.ReadCloser {
+	if operation == OperationResponses {
+		return source
+	}
+	reader, writer := io.Pipe()
+	go func() {
+		defer source.Close()
+		converter := newStreamConverter(writer, operation, options)
+		err := consumeSSE(source, converter.handle)
+		if err == nil {
+			err = converter.finish()
+		}
+		_ = writer.CloseWithError(err)
+	}()
+	return reader
+}
+
+type streamConverter struct {
+	writer          io.Writer
+	operation       string
+	id              string
+	model           string
+	created         int64
+	started         bool
+	finished        bool
+	textStarted     bool
+	textIndex       int
+	thinkingStarted bool
+	thinkingClosed  bool
+	thinkingIndex   int
+	thinkingItemID  string
+	nextIndex       int
+	tools           map[string]streamTool
+	usage           responseUsage
+	options         ResponseOptions
+	stopFilter      *anthropicStreamStopFilter
+	stopSequence    string
+}
+
+type streamTool struct {
+	Index     int
+	ID        string
+	Name      string
+	Arguments string
+	SentArgs  bool
+	Closed    bool
+}
+
+func newStreamConverter(writer io.Writer, operation string, options ResponseOptions) *streamConverter {
+	return &streamConverter{
+		writer: writer, operation: operation, created: time.Now().Unix(), tools: make(map[string]streamTool),
+		options: options, stopFilter: newAnthropicStreamStopFilter(options.StopSequences),
+	}
+}
+
+func (c *streamConverter) handle(event string, data []byte) error {
+	if c.finished {
+		return nil
+	}
+	if bytes.Equal(bytes.TrimSpace(data), []byte("[DONE]")) {
+		return nil
+	}
+	var root map[string]json.RawMessage
+	if err := json.Unmarshal(data, &root); err != nil {
+		return fmt.Errorf("解析上游 SSE 事件: %w", err)
+	}
+	typeName := event
+	if raw := root["type"]; typeName == "" {
+		_ = json.Unmarshal(raw, &typeName)
+	}
+	if c.stopSequence != "" && typeName != "response.completed" && typeName != "response.incomplete" && typeName != "response.failed" && typeName != "error" {
+		return nil
+	}
+	switch typeName {
+	case "response.created", "response.in_progress":
+		var response responseEnvelope
+		_ = json.Unmarshal(root["response"], &response)
+		c.setResponse(response)
+		return c.start()
+	case "response.output_text.delta":
+		var delta string
+		_ = json.Unmarshal(root["delta"], &delta)
+		if err := c.start(); err != nil {
+			return err
+		}
+		return c.textDelta(delta)
+	case "response.reasoning_summary_text.delta":
+		var delta string
+		_ = json.Unmarshal(root["delta"], &delta)
+		if c.operation == OperationChat {
+			return c.chatDelta(map[string]any{"reasoning_content": delta})
+		}
+		return c.thinkingDelta(delta)
+	case "response.reasoning_text.delta":
+		var delta string
+		_ = json.Unmarshal(root["delta"], &delta)
+		if c.operation == OperationMessages {
+			return c.thinkingDelta(delta)
+		}
+		return nil
+	case "response.output_item.added":
+		var item responseItem
+		_ = json.Unmarshal(root["item"], &item)
+		if item.Type == "reasoning" && c.operation == OperationMessages && c.options.AnthropicThinking {
+			return c.thinkingStart(item.ID)
+		}
+		if item.Type != "function_call" {
+			return nil
+		}
+		var outputIndex int
+		_ = json.Unmarshal(root["output_index"], &outputIndex)
+		return c.toolStart(item, outputIndex)
+	case "response.function_call_arguments.delta":
+		var itemID, delta string
+		_ = json.Unmarshal(root["item_id"], &itemID)
+		_ = json.Unmarshal(root["delta"], &delta)
+		return c.toolDelta(itemID, delta)
+	case "response.function_call_arguments.done":
+		var itemID, arguments string
+		_ = json.Unmarshal(root["item_id"], &itemID)
+		_ = json.Unmarshal(root["arguments"], &arguments)
+		return c.toolArgumentsDone(itemID, arguments)
+	case "response.output_item.done":
+		var item responseItem
+		_ = json.Unmarshal(root["item"], &item)
+		if item.Type == "function_call" {
+			return c.toolArgumentsDone(item.ID, item.Arguments)
+		}
+		if item.Type == "reasoning" {
+			return c.thinkingDone(item)
+		}
+	case "response.completed", "response.incomplete":
+		var response responseEnvelope
+		_ = json.Unmarshal(root["response"], &response)
+		c.setResponse(response)
+		status := response.Status
+		if status == "" && typeName == "response.incomplete" {
+			status = "incomplete"
+		}
+		return c.done(status)
+	case "error", "response.failed":
+		return c.streamError(data)
+	}
+	return nil
+}
+
+func (c *streamConverter) setResponse(value responseEnvelope) {
+	if value.ID != "" {
+		c.id = value.ID
+	}
+	if value.Model != "" {
+		c.model = value.Model
+	}
+	if value.CreatedAt != 0 {
+		c.created = value.CreatedAt
+	}
+	if value.Usage.InputTokens != 0 || value.Usage.OutputTokens != 0 {
+		c.usage = value.Usage
+	}
+}
+
+func (c *streamConverter) start() error {
+	if c.started {
+		return nil
+	}
+	c.started = true
+	if c.id == "" {
+		c.id = "resp_" + fmt.Sprint(time.Now().UnixNano())
+	}
+	if c.operation == OperationChat {
+		return c.startChat()
+	}
+	return c.startMessages()
+}
+
+func (c *streamConverter) textDelta(delta string) error {
+	if c.operation == OperationChat {
+		return c.textDeltaChat(delta)
+	}
+	return c.textDeltaMessages(delta)
+}
+
+func (c *streamConverter) toolStart(item responseItem, outputIndex int) error {
+	if c.operation == OperationMessages {
+		return c.toolStartMessages(item)
+	}
+	return c.toolStartChat(item, outputIndex)
+}
+
+func (c *streamConverter) toolDelta(itemID, delta string) error {
+	if c.operation == OperationChat {
+		return c.toolDeltaChat(itemID, delta)
+	}
+	return c.toolDeltaMessages(itemID, delta)
+}
+
+func (c *streamConverter) toolArgumentsDone(itemID, arguments string) error {
+	if c.operation == OperationChat {
+		return c.toolArgumentsDoneChat(itemID, arguments)
+	}
+	return c.toolArgumentsDoneMessages(itemID, arguments)
+}
+
+func (c *streamConverter) done(status string) error {
+	if c.finished {
+		return nil
+	}
+	if err := c.start(); err != nil {
+		return err
+	}
+	if c.operation == OperationChat {
+		return c.doneChat(status)
+	}
+	return c.doneMessages(status)
+}
+
+func (c *streamConverter) streamError(data []byte) error {
+	c.finished = true
+	if c.operation == OperationMessages {
+		return c.streamErrorMessages(data)
+	}
+	return c.streamErrorChat(data)
+}
+
+func (c *streamConverter) finish() error {
+	if c.finished {
+		return nil
+	}
+	return fmt.Errorf("上游 SSE 在完成事件前结束")
+}
+
+func (c *streamConverter) writeData(value any) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(c.writer, "data: %s\n\n", data)
+	return err
+}
+
+func (c *streamConverter) writeEvent(event string, value any) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(c.writer, "event: %s\ndata: %s\n\n", event, data)
+	return err
+}
+
+func consumeSSE(source io.Reader, handle func(string, []byte) error) error {
+	scanner := bufio.NewScanner(source)
+	scanner.Buffer(make([]byte, 64<<10), maxSSEEventBytes+1024)
+	var event string
+	var data strings.Builder
+	for scanner.Scan() {
+		line := strings.TrimSuffix(scanner.Text(), "\r")
+		switch {
+		case strings.HasPrefix(line, "event:"):
+			event = strings.TrimSpace(strings.TrimPrefix(line, "event:"))
+		case strings.HasPrefix(line, "data:"):
+			value := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+			separator := 0
+			if data.Len() > 0 {
+				separator = 1
+			}
+			if data.Len()+separator+len(value) > maxSSEEventBytes {
+				return fmt.Errorf("上游 SSE 事件过大")
+			}
+			if separator != 0 {
+				data.WriteByte('\n')
+			}
+			data.WriteString(value)
+		case line == "":
+			if data.Len() > 0 {
+				if err := handle(event, []byte(data.String())); err != nil {
+					return err
+				}
+			}
+			event = ""
+			data.Reset()
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("上游 SSE 事件过大或无法读取: %w", err)
+	}
+	if data.Len() > 0 {
+		return handle(event, []byte(data.String()))
+	}
+	return nil
+}
