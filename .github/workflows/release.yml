@@ -87,12 +87,25 @@ jobs:
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          if [ "${{ matrix.slug }}" = "linux-arm64" ]; then
+            sudo find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) \
+              -exec sed -i 's|http://ports.ubuntu.com/ubuntu-ports|https://ports.ubuntu.com/ubuntu-ports|g' {} +
+            WEBKIT_PACKAGE="libwebkit2gtk-4.1-dev"
+          else
+            WEBKIT_PACKAGE="libwebkit2gtk-4.0-dev"
+          fi
+
+          sudo apt-get \
+            -o Acquire::Retries=3 \
+            -o Acquire::ForceIPv4=true \
+            update
+          sudo apt-get \
+            -o Acquire::Retries=3 \
+            -o Acquire::ForceIPv4=true \
+            install -y \
             build-essential \
             libgtk-3-dev \
-            libwebkit2gtk-4.0-dev \
-            libwebkit2gtk-4.1-dev \
+            "${WEBKIT_PACKAGE}" \
             pkg-config
 
       - name: Install Wails CLI
@@ -108,7 +121,12 @@ jobs:
           export PATH="$(go env GOPATH)/bin:$PATH"
           VERSION="${{ steps.version.outputs.version }}"
           LDFLAGS="-s -w -X main.version=${VERSION}"
+          WAILS_TAGS=()
+          if [ "${{ matrix.slug }}" = "linux-arm64" ]; then
+            WAILS_TAGS=(-tags webkit2_41)
+          fi
           wails build \
+            "${WAILS_TAGS[@]}" \
             -clean \
             -trimpath \
             -platform "${{ matrix.platform }}" \
