@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/energye/systray"
@@ -21,6 +22,7 @@ type App struct {
 	ctx           context.Context
 	service       *service.Service
 	configWarning string
+	quitting      atomic.Bool
 }
 
 func NewApp() (*App, error) {
@@ -58,6 +60,11 @@ func (a *App) startup(ctx context.Context) {
 }
 
 func (a *App) beforeClose(ctx context.Context) bool {
+	// 托盘菜单选择退出时必须放行，否则 runtime.Quit 会被这里拦截，
+	// 进程会一直残留。
+	if a.quitting.Load() {
+		return false
+	}
 	runtime.WindowHide(ctx)
 	return true
 }
@@ -76,6 +83,7 @@ func (a *App) initSystray() {
 			runtime.WindowUnminimise(a.ctx)
 		})
 		mQuit.Click(func() {
+			a.quitting.Store(true)
 			systray.Quit()
 			runtime.Quit(a.ctx)
 		})

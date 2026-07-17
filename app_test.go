@@ -103,3 +103,11 @@ func TestAppShutdownStopsService(t *testing.T) {
 		t.Fatal("service still running")
 	}
 }
+
+func TestBeforeCloseAllowsQuitWhenQuitting(t *testing.T) {
+	app := NewAppWithService(nil)
+	app.quitting.Store(true)
+	if app.beforeClose(context.Background()) {
+		t.Fatal("beforeClose must not block quit once quitting is set")
+	}
+}
