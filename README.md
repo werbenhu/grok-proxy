@@ -6,6 +6,8 @@ GrokProxy — 在本地为 Grok/xAI 提供 OpenAI 与 Anthropic 兼容 API。
 
 默认监听 `127.0.0.1:8181`，关闭程序即停止代理。
 
+![GrokProxy 界面](assets/screenshots/zh.png)
+
 ## 能力
 
 - **xAI API Key**：直接连接 `api.x.ai`。

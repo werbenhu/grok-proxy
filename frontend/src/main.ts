@@ -39,6 +39,20 @@ root.innerHTML = `
 
   <div id="notice" class="notice hidden" role="status"></div>
 
+  <div id="oauth-box" class="oauth-overlay hidden" role="dialog" aria-modal="true">
+    <div class="oauth-card">
+      <span data-i18n="oauthHint"></span>
+      <strong id="oauth-code">—</strong>
+      <div class="oauth-actions">
+        <button id="copy-code" class="text-button" data-i18n="copyCode"></button>
+        <button id="open-oauth" class="text-button" data-i18n="openOauth"></button>
+      </div>
+      <div id="oauth-progress" class="progress"><span></span></div>
+      <small id="oauth-status"></small>
+      <button id="oauth-cancel" class="text-button" data-i18n="cancel"></button>
+    </div>
+  </div>
+
   <div class="content">
     <article class="panel auth-panel">
       <div class="section-head">
@@ -52,7 +66,7 @@ root.innerHTML = `
       </div>
 
       <div class="panel-scroll">
-        <div id="auth-pane-api_key" class="auth-option auth-pane hidden" role="tabpanel">
+        <div id="auth-pane-api_key" class="auth-pane hidden" role="tabpanel">
           <div class="option-copy">
             <span data-i18n="apiKeyDesc"></span>
           </div>
@@ -63,21 +77,11 @@ root.innerHTML = `
           <small id="api-key-hint"></small>
         </div>
 
-        <div id="auth-pane-device" class="auth-option auth-pane" role="tabpanel">
+        <div id="auth-pane-device" class="auth-pane" role="tabpanel">
           <div class="option-copy">
             <span data-i18n="deviceAuthDesc"></span>
           </div>
           <button id="oauth-start" class="button secondary wide" data-i18n="startOauth"></button>
-          <div id="oauth-box" class="oauth-box hidden">
-            <span data-i18n="oauthHint"></span>
-            <strong id="oauth-code">—</strong>
-            <div class="oauth-actions">
-              <button id="copy-code" class="text-button" data-i18n="copyCode"></button>
-              <button id="open-oauth" class="text-button" data-i18n="openOauth"></button>
-            </div>
-            <div id="oauth-progress" class="progress"><span></span></div>
-            <small id="oauth-status"></small>
-          </div>
         </div>
       </div>
 
@@ -106,27 +110,19 @@ root.innerHTML = `
       <button id="save-settings" class="button primary wide" data-i18n="saveSettings"></button>
     </article>
 
-    <section class="panel clients-panel">
+    <section class="panel client-panel">
       <div class="section-head">
-        <h3 data-i18n="clientEyebrow"></h3>
-        <span class="quiet">OpenAI / Anthropic</span>
+        <h3>OpenAI SDK</h3>
+        <button class="text-button" data-copy="openai" data-i18n="copy"></button>
       </div>
-      <div class="client-grid">
-        <div class="client-card">
-          <div class="client-title">
-            <strong>OpenAI SDK</strong>
-            <button class="text-button" data-copy="openai" data-i18n="copy"></button>
-          </div>
-          <pre id="openai-snippet"></pre>
-        </div>
-        <div class="client-card">
-          <div class="client-title">
-            <strong>Anthropic SDK</strong>
-            <button class="text-button" data-copy="anthropic" data-i18n="copy"></button>
-          </div>
-          <pre id="anthropic-snippet"></pre>
-        </div>
+      <pre id="openai-snippet"></pre>
+    </section>
+    <section class="panel client-panel">
+      <div class="section-head">
+        <h3>Anthropic SDK</h3>
+        <button class="text-button" data-copy="anthropic" data-i18n="copy"></button>
       </div>
+      <pre id="anthropic-snippet"></pre>
     </section>
   </div>
 
@@ -134,7 +130,7 @@ root.innerHTML = `
     <span><span data-i18n="requests"></span> <b id="total-requests">0</b></span>
     <span><span data-i18n="active"></span> <b id="active-requests">0</b></span>
     <span id="last-request"></span>
-    <span class="version">v2.0.0</span>
+    <span class="version">v0.0.9</span>
   </footer>
 </main>`
 
@@ -360,24 +356,37 @@ function setOAuthProgress(visible: boolean) {
   element('oauth-progress').classList.toggle('hidden', !visible)
 }
 
+let oauthCancelled = false
+
+function closeOAuthDialog() {
+  element('oauth-box').classList.add('hidden')
+  setOAuthProgress(false)
+  setBusy(false)
+  if (state) render(state)
+}
+
 element('oauth-start').addEventListener('click', async () => {
   if (busy) return
   switchAuthTab('device')
   setBusy(true)
   try {
     authorization = await api.beginOAuth()
+    oauthCancelled = false
     element('oauth-code').textContent = authorization.userCode
-    element('oauth-box').classList.remove('hidden')
-    setOAuthProgress(true)
     element('oauth-status').textContent = t('oauthWaiting')
+    setOAuthProgress(true)
+    element('oauth-box').classList.remove('hidden')
     await api.openURL(authorization.verificationUriComplete || authorization.verificationUri)
     void pollOAuth(authorization)
   } catch (error) {
-    setOAuthProgress(false)
+    closeOAuthDialog()
     showNotice(errorMessage(error), 'error')
-    setBusy(false)
-    if (state) render(state)
   }
+})
+
+element('oauth-cancel').addEventListener('click', () => {
+  oauthCancelled = true
+  closeOAuthDialog()
 })
 
 async function pollOAuth(flow: DeviceAuthorization) {
@@ -385,13 +394,11 @@ async function pollOAuth(flow: DeviceAuthorization) {
   let delay = Math.max(flow.intervalSeconds, 2) * 1000
   while (Date.now() < deadline) {
     await new Promise((resolve) => window.setTimeout(resolve, delay))
+    if (oauthCancelled) return
     try {
       render(await api.completeOAuth(flow.deviceCode))
-      setOAuthProgress(false)
-      element('oauth-status').textContent = t('oauthDone')
+      closeOAuthDialog()
       showNotice(t('oauthCompleted'))
-      setBusy(false)
-      render(state!)
       return
     } catch (error) {
       const message = errorMessage(error)
@@ -406,18 +413,13 @@ async function pollOAuth(flow: DeviceAuthorization) {
       ) {
         continue
       }
-      setOAuthProgress(false)
-      element('oauth-status').textContent = message
+      closeOAuthDialog()
       showNotice(message, 'error')
-      setBusy(false)
-      if (state) render(state)
       return
     }
   }
-  setOAuthProgress(false)
+  closeOAuthDialog()
   showNotice(t('oauthExpired'), 'error')
-  setBusy(false)
-  if (state) render(state)
 }
 
 element('open-oauth').addEventListener('click', () => {

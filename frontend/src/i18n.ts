@@ -23,7 +23,7 @@ export type MessageKey =
   | 'copyCode'
   | 'openOauth'
   | 'oauthWaiting'
-  | 'oauthDone'
+  | 'cancel'
   | 'testConnection'
   | 'clearCreds'
   | 'proxySettings'
@@ -33,7 +33,6 @@ export type MessageKey =
   | 'localKeyPlaceholder'
   | 'needLocalKey'
   | 'saveSettings'
-  | 'clientEyebrow'
   | 'copy'
   | 'requests'
   | 'active'
@@ -79,7 +78,7 @@ const zh: Record<MessageKey, string> = {
   copyCode: '复制授权码',
   openOauth: '打开授权页',
   oauthWaiting: '等待授权确认…',
-  oauthDone: '授权完成',
+  cancel: '取消',
   testConnection: '测试连接',
   clearCreds: '清除凭据',
   proxySettings: '代理设置',
@@ -89,7 +88,6 @@ const zh: Record<MessageKey, string> = {
   localKeyPlaceholder: '16 位本地密钥',
   needLocalKey: '本地代理密钥不能为空',
   saveSettings: '保存代理设置',
-  clientEyebrow: '客户端',
   copy: '复制',
   requests: '请求',
   active: '活动',
@@ -136,7 +134,7 @@ const en: Record<MessageKey, string> = {
   copyCode: 'Copy code',
   openOauth: 'Open auth page',
   oauthWaiting: 'Waiting for confirmation…',
-  oauthDone: 'Authorized',
+  cancel: 'Cancel',
   testConnection: 'Test connection',
   clearCreds: 'Clear credentials',
   proxySettings: 'Proxy settings',
@@ -146,7 +144,6 @@ const en: Record<MessageKey, string> = {
   localKeyPlaceholder: '16-char local key',
   needLocalKey: 'Local proxy key cannot be empty',
   saveSettings: 'Save proxy settings',
-  clientEyebrow: 'Clients',
   copy: 'Copy',
   requests: 'Requests',
   active: 'Active',

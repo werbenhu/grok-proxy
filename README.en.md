@@ -6,6 +6,8 @@ GrokProxy — Expose OpenAI & Anthropic compatible APIs for Grok/xAI, locally on
 
 Listens on `127.0.0.1:8181` by default; closing the app stops the proxy.
 
+![GrokProxy UI](assets/screenshots/en.png)
+
 ## Features
 
 - **xAI API Key**: connect directly to `api.x.ai`.

@@ -96,10 +96,10 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .shell {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 20px;
   height: 100%;
   width: 100%;
-  padding: 10px 14px 8px;
+  padding: 18px 20px 16px;
   overflow: hidden;
 }
 
@@ -232,8 +232,8 @@ h1 { font-size: 17px; letter-spacing: -.02em; color: var(--text-heading); }
 .panel {
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: linear-gradient(145deg, var(--panel), var(--panel-2));
-  box-shadow: 0 10px 32px var(--shadow);
+  background: var(--panel);
+  box-shadow: 0 2px 10px var(--shadow);
 }
 
 /* ── buttons ── */
@@ -285,9 +285,9 @@ h1 { font-size: 17px; letter-spacing: -.02em; color: var(--text-heading); }
 .wide { width: 100%; }
 
 #service-toggle.button {
-  min-height: 28px;
-  padding: 0 12px;
-  font-size: 12px;
+  min-height: 36px;
+  padding: 0 16px;
+  font-size: 13px;
   border-radius: 999px;
 }
 
@@ -302,25 +302,31 @@ h1 { font-size: 17px; letter-spacing: -.02em; color: var(--text-heading); }
 .text-button:hover { filter: brightness(1.15); }
 .text-button.danger { color: var(--danger); }
 
-/* ── 主内容区：自适应填满剩余窗口 ── */
+/* ── 主内容区：面板按内容自适应，富余空间留在面板之外作呼吸区 ── */
 .content {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-content: safe center;
+  gap: 18px;
   min-height: 0;
   flex: 1 1 auto;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
+
+.content::-webkit-scrollbar { display: none; }
 
 .auth-panel {
   grid-column: 1;
   grid-row: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
   min-width: 0;
   min-height: 0;
-  padding: 10px 12px;
+  padding: 16px 18px;
   overflow: hidden;
 }
 
@@ -355,9 +361,9 @@ h1 { font-size: 17px; letter-spacing: -.02em; color: var(--text-heading); }
 }
 
 .auth-tab.active {
-  color: var(--bg);
-  background: var(--accent);
-  box-shadow: 0 2px 8px var(--glow);
+  color: var(--text-heading);
+  background: var(--panel);
+  box-shadow: 0 1px 4px var(--shadow);
 }
 
 .auth-pane {
@@ -372,10 +378,10 @@ h1 { font-size: 17px; letter-spacing: -.02em; color: var(--text-heading); }
   grid-row: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
   min-width: 0;
   min-height: 0;
-  padding: 10px 12px;
+  padding: 16px 18px;
   overflow: hidden;
 }
 
@@ -423,7 +429,7 @@ h3 {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 8px;
+  gap: 12px;
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
@@ -435,19 +441,11 @@ h3 {
 
 .panel-scroll::-webkit-scrollbar { display: none; }
 
-.auth-option {
-  flex: 0 0 auto;
-  padding: 10px;
-  border: 1px solid var(--line-weak);
-  border-radius: 10px;
-  background: var(--panel-2);
-}
-
 .option-copy {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  margin-bottom: 6px;
+  gap: 4px;
+  margin-bottom: 8px;
 }
 
 .option-copy strong { font-size: 13px; color: var(--text-heading); }
@@ -483,26 +481,58 @@ input:focus {
   box-shadow: 0 0 0 3px var(--glow);
 }
 
-.oauth-box {
-  margin-top: 8px;
-  padding: 10px;
-  border-radius: 8px;
-  background: var(--panel-3);
+/* ── 授权码弹层：居中模态框，不撑开面板、不推动页面布局 ── */
+.oauth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 12, 11, .45);
+  backdrop-filter: blur(3px);
+  animation: toast-in .15s ease-out;
+}
+
+.oauth-card {
+  width: min(320px, calc(100% - 64px));
+  padding: 20px 18px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .3);
   text-align: center;
 }
 
-.oauth-box > span {
+.oauth-card > span {
   display: block;
   color: var(--muted);
   font-size: 11px;
 }
 
-.oauth-box strong {
+.oauth-card strong {
   display: block;
-  margin: 6px 0;
+  margin: 8px 0 10px;
   color: var(--accent);
-  font: 700 20px ui-monospace, monospace;
+  font: 700 22px ui-monospace, monospace;
   letter-spacing: .12em;
+}
+
+.oauth-card small {
+  display: block;
+  min-height: 14px;
+  margin-top: 2px;
+}
+
+.oauth-card #oauth-cancel {
+  display: block;
+  margin: 6px auto 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.oauth-card #oauth-cancel:hover {
+  color: var(--text);
 }
 
 .oauth-actions,
@@ -515,7 +545,7 @@ input:focus {
 .inline-actions {
   justify-content: space-between;
   flex: 0 0 auto;
-  padding-top: 2px;
+  padding-top: 6px;
 }
 
 .progress {
@@ -552,7 +582,7 @@ input:focus {
   font-size: 13px;
 }
 
-.settings-panel label input { margin-top: 5px; }
+.settings-panel label input { margin-top: 6px; }
 
 .settings-panel label em {
   color: var(--muted);
@@ -577,44 +607,14 @@ input:focus {
 }
 
 /* ── clients ── */
-.clients-panel {
-  grid-column: 1 / -1;
-  grid-row: 2;
+.client-panel {
   min-width: 0;
-  padding: 8px 12px;
+  padding: 16px 18px;
   overflow: hidden;
 }
 
-.clients-panel .section-head {
-  margin-bottom: 6px;
-  align-items: center;
-}
-
-.client-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 8px;
-}
-
-.client-card {
-  min-width: 0;
-  padding: 8px 10px;
-  border: 1px solid var(--line-weak);
-  border-radius: 9px;
-  background: var(--panel-3);
-}
-
-.client-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.client-title strong { font-size: 12px; color: var(--text-heading); }
-
 pre {
-  margin: 6px 0 0;
+  margin: 8px 0 0;
   overflow: hidden;
   color: var(--pre);
   font: 11px/1.45 ui-monospace, "Cascadia Code", monospace;
@@ -622,31 +622,46 @@ pre {
   word-break: break-all;
 }
 
-/* ── notice / footer ── */
-/* 浮层提示：不占文档流，避免挤压下方面板内容 */
+/* ── toast：右上角悬浮小卡片，不占文档流 ── */
 .notice {
   position: fixed;
-  top: 12px;
-  left: 50%;
+  top: 56px;
+  right: 14px;
   z-index: 100;
-  width: min(720px, calc(100% - 32px));
-  margin: 0;
-  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(340px, calc(100% - 32px));
+  padding: 10px 14px;
   border: 1px solid var(--notice-line);
-  border-radius: 8px;
+  border-radius: 10px;
   color: var(--notice-text);
   background: var(--notice-bg);
-  box-shadow: 0 10px 28px var(--shadow);
+  box-shadow: 0 8px 24px var(--shadow);
   font-size: 12px;
-  line-height: 1.4;
-  transform: translateX(-50%);
+  line-height: 1.45;
   pointer-events: none;
+  animation: toast-in .18s ease-out;
+}
+
+.notice::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
 }
 
 .notice.error {
   border-color: var(--danger-line);
   color: var(--danger);
   background: var(--danger-bg);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .hidden { display: none !important; }
@@ -668,16 +683,11 @@ footer .version { margin-left: auto; }
 @media (max-width: 760px) {
   .content {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-rows: auto;
   }
 
   .auth-panel { grid-column: 1; grid-row: 1; }
   .settings-panel { grid-column: 1; grid-row: 2; }
-  .clients-panel { grid-column: 1; grid-row: 3; }
-
-  .client-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
 
   .service-actions {
     gap: 6px;
