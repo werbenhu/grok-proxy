@@ -18,6 +18,7 @@ root.innerHTML = `
       </div>
     </div>
     <div class="service-actions">
+      <button id="service-toggle" class="button primary" disabled></button>
       <div class="segmented-switch theme-switch" role="group" aria-label="Theme">
         <button type="button" data-theme="light" title="Light" aria-label="Light">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
@@ -89,7 +90,6 @@ root.innerHTML = `
     <article class="panel settings-panel">
       <div class="section-head">
         <h3 data-i18n="proxySettings"></h3>
-        <button id="service-toggle" class="button primary" disabled></button>
       </div>
 
       <div class="panel-scroll">
@@ -150,6 +150,11 @@ let state: AppState | undefined
 let authorization: DeviceAuthorization | undefined
 let busy = false
 let authTab: AuthTab = 'device'
+// Tracks real user edits to the settings fields so state polling does not
+// clobber an unsaved draft. Value comparison against the DOM cannot be used:
+// on first render the inputs still hold their hardcoded HTML defaults, which
+// differ from the loaded config and would wrongly count as a draft.
+let settingsDirty = false
 
 function switchAuthTab(tab: AuthTab) {
   authTab = tab
@@ -168,9 +173,6 @@ const setBusy = (value: boolean) => {
     if (button.dataset.lang || button.dataset.theme || button.dataset.authTab) return
     button.disabled = value
   })
-  if (!value && state) {
-    element<HTMLButtonElement>('service-toggle').disabled = !state.config.hasCredential
-  }
 }
 
 const showNotice = (message: string, kind: 'ok' | 'error' = 'ok') => {
@@ -205,17 +207,10 @@ function applyStaticI18n() {
 
 function statusLabel(next: AppState): string {
   if (next.status === 'reauthorization_required') return t('statusReauth')
-  if (next.running) return t('statusRunning')
-  if (next.status === 'waiting') return t('statusWaiting')
-  if (next.status === 'error') return t('statusError')
-  return t('statusStopped')
-}
-
-function hasSettingsDraft() {
-  if (!state) return false
-  return element<HTMLInputElement>('listen-host').value.trim() !== state.config.listenHost
-    || Number(element<HTMLInputElement>('listen-port').value) !== state.config.listenPort
-    || element<HTMLInputElement>('local-key').value.trim() !== (state.config.localKey ?? '')
+  // "Authorized" means holding a valid Grok credential; it is independent of
+  // whether the local proxy is running.
+  if (next.config.hasCredential) return t('statusConnected')
+  return t('statusWaiting')
 }
 
 function render(next: AppState) {
@@ -223,7 +218,7 @@ function render(next: AppState) {
   applyStaticI18n()
 
   const pill = element<HTMLSpanElement>('status-pill')
-  pill.className = `pill ${next.running && next.status !== 'reauthorization_required' ? 'online' : next.status === 'error' || next.status === 'reauthorization_required' ? 'failed' : ''}`
+  pill.className = `pill ${next.status === 'reauthorization_required' ? 'failed' : next.config.hasCredential ? 'online' : ''}`
   pill.querySelector('span')!.textContent = statusLabel(next)
 
   element('endpoint-caption').textContent = next.running ? t('appSubtitleRunning') : t('appSubtitle')
@@ -231,9 +226,11 @@ function render(next: AppState) {
   const toggle = element<HTMLButtonElement>('service-toggle')
   toggle.textContent = next.running ? t('stopProxy') : t('startProxy')
   toggle.className = `button ${next.running ? 'danger' : 'primary'}`
-  toggle.disabled = busy || !next.config.hasCredential
+  // Stay clickable without a credential: the click handler shows a toast
+  // explaining that Grok must be connected first.
+  toggle.disabled = busy
 
-  if (!hasSettingsDraft()) {
+  if (!settingsDirty) {
     element<HTMLInputElement>('listen-host').value = next.config.listenHost
     element<HTMLInputElement>('listen-port').value = String(next.config.listenPort)
     element<HTMLInputElement>('local-key').value = next.config.localKey ?? ''
@@ -267,14 +264,16 @@ function switchTheme(theme: Theme) {
   applyStaticI18n()
 }
 
-async function run(action: () => Promise<AppState>, successKey: Parameters<typeof t>[0]) {
-  if (busy) return
+async function run(action: () => Promise<AppState>, successKey: Parameters<typeof t>[0]): Promise<boolean> {
+  if (busy) return false
   setBusy(true)
   try {
     render(await action())
     showNotice(t(successKey))
+    return true
   } catch (error) {
     showNotice(errorMessage(error), 'error')
+    return false
   } finally {
     setBusy(false)
     if (state) render(state)
@@ -304,6 +303,10 @@ document.querySelectorAll<HTMLButtonElement>('[data-auth-tab]').forEach((button)
 
 element('service-toggle').addEventListener('click', () => {
   const wasRunning = !!state?.running
+  if (!wasRunning && !state?.config.hasCredential) {
+    showNotice(t('connectGrokFirst'), 'error')
+    return
+  }
   void run(() => (wasRunning ? api.stop() : api.start()), wasRunning ? 'proxyStopped' : 'proxyStarted')
 })
 
@@ -326,6 +329,14 @@ element('save-api-key').addEventListener('click', () => {
   input.value = ''
 })
 
+// Any keystroke in the settings fields marks a draft; polling keeps it
+// untouched until the save succeeds (which clears the flag below).
+for (const id of ['listen-host', 'listen-port', 'local-key']) {
+  element<HTMLInputElement>(id).addEventListener('input', () => {
+    settingsDirty = true
+  })
+}
+
 element('save-settings').addEventListener('click', () => {
   const localKeyValue = element<HTMLInputElement>('local-key').value.trim()
   if (!localKeyValue) {
@@ -340,7 +351,9 @@ element('save-settings').addEventListener('click', () => {
       localKey: localKeyValue,
     }),
     'settingsSaved',
-  )
+  ).then((saved) => {
+    if (saved) settingsDirty = false
+  })
 })
 
 function setOAuthProgress(visible: boolean) {

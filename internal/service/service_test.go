@@ -169,6 +169,66 @@ func TestPermanentOAuthFailureRequiresReauthorization(t *testing.T) {
 	}
 }
 
+func TestNewInitialStatusReflectsStoredCredential(t *testing.T) {
+	if service := newTestService(t, config.Default(), &fakeOAuth{}); service.State().Status != StatusWaiting {
+		t.Fatalf("status=%s, want waiting without credential", service.State().Status)
+	}
+	cfg := config.Default()
+	cfg.AuthMode = config.AuthModeAPIKey
+	cfg.APIKey = "xai-key"
+	if service := newTestService(t, cfg, &fakeOAuth{}); service.State().Status != StatusStopped {
+		t.Fatalf("status=%s, want stopped with stored credential", service.State().Status)
+	}
+}
+
+func TestRefreshAuthRefreshesStaleOAuthToken(t *testing.T) {
+	cfg := config.Default()
+	cfg.AuthMode = config.AuthModeOAuth
+	cfg.OAuth = config.OAuth{AccessToken: "stale", RefreshToken: "refresh", ExpiresAt: time.Now().Add(-time.Hour)}
+	oauthClient := &fakeOAuth{token: auth.Token{AccessToken: "fresh", RefreshToken: "refresh2", ExpiresAt: time.Now().Add(time.Hour)}}
+	service := newTestService(t, cfg, oauthClient)
+	service.RefreshAuth(context.Background())
+	stored := service.store.Current()
+	if stored.OAuth.AccessToken != "fresh" || stored.OAuth.RefreshToken != "refresh2" {
+		t.Fatalf("stored=%+v", stored.OAuth)
+	}
+	if state := service.State(); state.Status != StatusStopped || !state.Config.HasCredential {
+		t.Fatalf("state=%+v", state)
+	}
+}
+
+func TestRefreshAuthMarksReauthorizationWhenRefreshFails(t *testing.T) {
+	cfg := config.Default()
+	cfg.AuthMode = config.AuthModeOAuth
+	cfg.OAuth = config.OAuth{AccessToken: "stale", RefreshToken: "revoked", ExpiresAt: time.Now().Add(-time.Hour)}
+	service := newTestService(t, cfg, &fakeOAuth{refreshErr: auth.ErrReauthorizationRequired})
+	service.RefreshAuth(context.Background())
+	state := service.State()
+	if state.Status != StatusReauthorization || state.Config.HasCredential {
+		t.Fatalf("state=%+v", state)
+	}
+}
+
+func TestRefreshAuthLeavesFreshOrNonOAuthCredentialAlone(t *testing.T) {
+	cfg := config.Default()
+	cfg.AuthMode = config.AuthModeOAuth
+	cfg.OAuth = config.OAuth{AccessToken: "fresh", RefreshToken: "refresh", ExpiresAt: time.Now().Add(time.Hour)}
+	service := newTestService(t, cfg, &fakeOAuth{refreshErr: errors.New("must not be called")})
+	service.RefreshAuth(context.Background())
+	if state := service.State(); state.Status != StatusStopped || !state.Config.HasCredential {
+		t.Fatalf("state=%+v", state)
+	}
+
+	apiKeyCfg := config.Default()
+	apiKeyCfg.AuthMode = config.AuthModeAPIKey
+	apiKeyCfg.APIKey = "xai-key"
+	apiKeyService := newTestService(t, apiKeyCfg, &fakeOAuth{refreshErr: errors.New("must not be called")})
+	apiKeyService.RefreshAuth(context.Background())
+	if state := apiKeyService.State(); state.Status != StatusStopped || !state.Config.HasCredential {
+		t.Fatalf("state=%+v", state)
+	}
+}
+
 func newTestService(t *testing.T, cfg config.Config, oauthClient OAuthClient) *Service {
 	t.Helper()
 	store := config.NewStore(filepath.Join(t.TempDir(), "config.json"))

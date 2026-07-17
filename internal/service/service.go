@@ -57,7 +57,13 @@ func New(store *config.Store, oauthClient OAuthClient, httpClient *http.Client) 
 	if oauthClient == nil {
 		oauthClient = auth.NewOAuthClient(httpClient)
 	}
-	service := &Service{store: store, oauth: oauthClient, status: StatusStopped}
+	// A stored credential survives restarts, so the initial status mirrors a
+	// manual stop: stopped when authorized, waiting when nothing is configured.
+	status := StatusWaiting
+	if store.Current().Public().HasCredential {
+		status = StatusStopped
+	}
+	service := &Service{store: store, oauth: oauthClient, status: status}
 	service.tokens = auth.NewSource(oauthClient, store)
 	service.upstream = upstream.NewClient(httpClient, service)
 	return service, nil
@@ -259,6 +265,18 @@ func (s *Service) State() State {
 
 func (s *Service) BeginOAuth(ctx context.Context) (auth.DeviceAuthorization, error) {
 	return s.oauth.Start(ctx)
+}
+
+// RefreshAuth proactively refreshes a stale OAuth access token so an expired
+// or revoked authorization surfaces as reauthorization_required at startup,
+// instead of only when the first proxied request fails. API key mode needs no
+// upfront validation and is left untouched.
+func (s *Service) RefreshAuth(ctx context.Context) {
+	cfg := s.store.Current()
+	if cfg.AuthMode != config.AuthModeOAuth || strings.TrimSpace(cfg.OAuth.RefreshToken) == "" {
+		return
+	}
+	_, _ = s.Authorization(ctx)
 }
 
 func (s *Service) CompleteOAuth(ctx context.Context, deviceCode string) (State, error) {

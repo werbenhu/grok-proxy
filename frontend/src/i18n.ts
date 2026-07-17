@@ -3,14 +3,12 @@ export type Locale = 'zh' | 'en'
 export type MessageKey =
   | 'appSubtitle'
   | 'appSubtitleRunning'
-  | 'statusLoading'
-  | 'statusRunning'
+  | 'statusConnected'
   | 'statusWaiting'
-  | 'statusError'
-  | 'statusStopped'
   | 'statusReauth'
   | 'startProxy'
   | 'stopProxy'
+  | 'connectGrokFirst'
   | 'connectGrok'
   | 'apiKeyTitle'
   | 'apiKeyDesc'
@@ -61,15 +59,13 @@ export type MessageKey =
 const zh: Record<MessageKey, string> = {
   appSubtitle: 'Grok 本地兼容代理',
   appSubtitleRunning: '代理已启动',
-  statusLoading: '正在加载',
-  statusRunning: '已连接',
-  statusWaiting: '等待配置',
-  statusError: '启动失败',
-  statusStopped: '已停止',
+  statusConnected: '已授权',
+  statusWaiting: '未授权',
   statusReauth: '需重新授权',
   startProxy: '启动代理',
   stopProxy: '停止代理',
-  connectGrok: '连接 Grok',
+  connectGrokFirst: '请先完成 Grok 授权，再启动代理',
+  connectGrok: 'Grok 授权',
   apiKeyTitle: 'xAI API Key',
   apiKeyDesc: '直接使用 api.x.ai，适合官方开发者密钥',
   save: '保存',
@@ -120,15 +116,13 @@ const zh: Record<MessageKey, string> = {
 const en: Record<MessageKey, string> = {
   appSubtitle: 'Local Grok-compatible proxy',
   appSubtitleRunning: 'Proxy started',
-  statusLoading: 'Loading',
-  statusRunning: 'Connected',
-  statusWaiting: 'Waiting setup',
-  statusError: 'Failed',
-  statusStopped: 'Stopped',
+  statusConnected: 'Authorized',
+  statusWaiting: 'Not authorized',
   statusReauth: 'Reauth needed',
   startProxy: 'Start proxy',
   stopProxy: 'Stop proxy',
-  connectGrok: 'Connect Grok',
+  connectGrokFirst: 'Authorize Grok before starting the proxy',
+  connectGrok: 'Grok Authorization',
   apiKeyTitle: 'xAI API Key',
   apiKeyDesc: 'Use api.x.ai directly with an official developer key',
   save: 'Save',

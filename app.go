@@ -57,6 +57,14 @@ func (a *App) startup(ctx context.Context) {
 	}
 	a.initSystray()
 	// Proxy must be started manually from the UI.
+	// Check the stored Grok authorization in the background: a still-valid
+	// token keeps the UI "connected" across restarts, an expired one flips
+	// the status to reauthorization_required without waiting for traffic.
+	go func() {
+		ctx, cancel := context.WithTimeout(a.ctx, 30*time.Second)
+		defer cancel()
+		a.service.RefreshAuth(ctx)
+	}()
 }
 
 func (a *App) beforeClose(ctx context.Context) bool {
