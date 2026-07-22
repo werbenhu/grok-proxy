@@ -113,6 +113,14 @@ func (c *Client) Responses(ctx context.Context, body []byte, stream bool) (*http
 	return c.do(ctx, http.MethodPost, "/responses", body, stream, envelope.Model)
 }
 
+func (c *Client) ResponsesCompact(ctx context.Context, body []byte) (*http.Response, error) {
+	var envelope struct {
+		Model string `json:"model"`
+	}
+	_ = json.Unmarshal(body, &envelope)
+	return c.do(ctx, http.MethodPost, "/responses/compact", body, false, envelope.Model)
+}
+
 func (c *Client) do(ctx context.Context, method, path string, body []byte, stream bool, model string) (*http.Response, error) {
 	if c.credentials == nil {
 		return nil, fmt.Errorf("缺少上游凭据源")

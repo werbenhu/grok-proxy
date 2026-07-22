@@ -32,6 +32,84 @@ func TestOpenAIJSONConversion(t *testing.T) {
 	}
 }
 
+func TestResponsesPassthroughPreservesImagesAndToolOutputs(t *testing.T) {
+	responseBody := `{"id":"resp_native","model":"grok-4.5","status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"done"}]}]}`
+	requestBody := `{
+  "model": "grok-4.5",
+  "input": [
+    {"role":"user","content":[{"type":"input_image","image_url":"data:image/png;base64,iVBORw0KGgoAAA"}]},
+    {"type":"function_call_output","call_id":"call_1","output":[{"type":"input_text","text":"screenshot"},{"type":"input_image","image_url":"data:image/png;base64,AAAA"}]}
+  ],
+  "tools": [{"type":"function","name":"view_image","description":"Inspect an image","parameters":{"type":"object"}}],
+  "tool_choice": "auto"
+}`
+	up := &fakeUpstream{responses: jsonResponse(responseBody)}
+	cfg := testConfig()
+	handler := New(cfg, up)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, authenticatedRequest(cfg, http.MethodPost, "/v1/responses", strings.NewReader(requestBody)))
+	if rec.Code != http.StatusOK || rec.Body.String() != responseBody {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if string(up.lastBody) != requestBody {
+		t.Fatalf("request was not passed through verbatim:\n%s", up.lastBody)
+	}
+}
+
+func TestResponsesStreamPassthrough(t *testing.T) {
+	stream := "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_s\"}}\n\n" +
+		"event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"Hi\"}\n\n"
+	requestBody := `{"model":"grok-4.5","stream":true,"input":"hi"}`
+	up := &fakeUpstream{responses: streamResponse(stream)}
+	cfg := testConfig()
+	rec := httptest.NewRecorder()
+	New(cfg, up).ServeHTTP(rec, authenticatedRequest(cfg, http.MethodPost, "/v1/responses", strings.NewReader(requestBody)))
+	if rec.Code != http.StatusOK || rec.Body.String() != stream || !up.lastStream {
+		t.Fatalf("status=%d stream=%v body=%q", rec.Code, up.lastStream, rec.Body.String())
+	}
+	if string(up.lastBody) != requestBody {
+		t.Fatalf("request was not passed through verbatim: %s", up.lastBody)
+	}
+}
+
+func TestResponsesCompactPassthrough(t *testing.T) {
+	requestBody := `{"model":"grok-4.5","input":[{"role":"user","content":[{"type":"input_text","text":"compact this"}]}]}`
+	responseBody := `{"id":"resp_compact","status":"completed","output":[{"type":"compaction","encrypted_content":"opaque"}]}`
+	up := &fakeUpstream{responsesCompact: func(context.Context, []byte) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(responseBody))}, nil
+	}}
+	cfg := testConfig()
+	rec := httptest.NewRecorder()
+	New(cfg, up).ServeHTTP(rec, authenticatedRequest(cfg, http.MethodPost, "/v1/responses/compact", strings.NewReader(requestBody)))
+	if rec.Code != http.StatusOK || rec.Body.String() != responseBody {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if string(up.lastCompactBody) != requestBody {
+		t.Fatalf("compact request was not passed through verbatim: %s", up.lastCompactBody)
+	}
+}
+
+func TestResponsesValidation(t *testing.T) {
+	cfg := testConfig()
+	up := &fakeUpstream{}
+	handler := New(cfg, up)
+
+	missingInput := httptest.NewRecorder()
+	handler.ServeHTTP(missingInput, authenticatedRequest(cfg, http.MethodPost, "/v1/responses", strings.NewReader(`{"model":"grok-4.5"}`)))
+	if missingInput.Code != http.StatusBadRequest || !strings.Contains(missingInput.Body.String(), "model and input are required") {
+		t.Fatalf("missing input=%d %s", missingInput.Code, missingInput.Body.String())
+	}
+
+	streamCompact := httptest.NewRecorder()
+	handler.ServeHTTP(streamCompact, authenticatedRequest(cfg, http.MethodPost, "/v1/responses/compact", strings.NewReader(`{"model":"grok-4.5","stream":true,"input":"hi"}`)))
+	if streamCompact.Code != http.StatusBadRequest || !strings.Contains(streamCompact.Body.String(), "stream is not supported") {
+		t.Fatalf("stream compact=%d %s", streamCompact.Code, streamCompact.Body.String())
+	}
+	if up.lastBody != nil || up.lastCompactBody != nil {
+		t.Fatal("invalid Responses request reached upstream")
+	}
+}
+
 func TestMessagesRequiresVersionAndConvertsJSON(t *testing.T) {
 	up := &fakeUpstream{responses: jsonResponse(`{"id":"resp_2","model":"grok-4","status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"hello"}]}],"usage":{"input_tokens":4,"output_tokens":2}}`)}
 	cfg := testConfig()

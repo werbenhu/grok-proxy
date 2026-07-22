@@ -83,6 +83,16 @@ func TestMessagesWrongMethodUsesAnthropicError(t *testing.T) {
 	}
 }
 
+func TestResponsesWrongMethodUsesOpenAIError(t *testing.T) {
+	cfg := testConfig()
+	handler := New(cfg, &fakeUpstream{})
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, authenticatedRequest(cfg, http.MethodGet, "/v1/responses", nil))
+	if recorder.Code != http.StatusMethodNotAllowed || recorder.Header().Get("Allow") != http.MethodPost || !strings.Contains(recorder.Body.String(), `"error"`) {
+		t.Fatalf("status=%d headers=%v body=%s", recorder.Code, recorder.Header(), recorder.Body.String())
+	}
+}
+
 func TestBodyLimit(t *testing.T) {
 	cfg := testConfig()
 	handler := New(cfg, &fakeUpstream{})
@@ -114,10 +124,12 @@ func TestRequestCancellationReachesUpstream(t *testing.T) {
 }
 
 type fakeUpstream struct {
-	modelsBody string
-	responses  func(context.Context, []byte, bool) (*http.Response, error)
-	lastBody   []byte
-	lastStream bool
+	modelsBody       string
+	responses        func(context.Context, []byte, bool) (*http.Response, error)
+	responsesCompact func(context.Context, []byte) (*http.Response, error)
+	lastBody         []byte
+	lastCompactBody  []byte
+	lastStream       bool
 }
 
 func testConfig() config.Config {
@@ -135,11 +147,20 @@ func authenticatedRequest(cfg config.Config, method, target string, body io.Read
 func (f *fakeUpstream) Models(context.Context) (*http.Response, error) {
 	return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(f.modelsBody))}, nil
 }
+
 func (f *fakeUpstream) Responses(ctx context.Context, body []byte, stream bool) (*http.Response, error) {
 	f.lastBody = append([]byte(nil), body...)
 	f.lastStream = stream
 	if f.responses != nil {
 		return f.responses(ctx, body, stream)
+	}
+	return nil, nil
+}
+
+func (f *fakeUpstream) ResponsesCompact(ctx context.Context, body []byte) (*http.Response, error) {
+	f.lastCompactBody = append([]byte(nil), body...)
+	if f.responsesCompact != nil {
+		return f.responsesCompact(ctx, body)
 	}
 	return nil, nil
 }

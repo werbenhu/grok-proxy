@@ -19,6 +19,7 @@ const maxRequestBodyBytes = 32 << 20
 type Upstream interface {
 	Models(context.Context) (*http.Response, error)
 	Responses(context.Context, []byte, bool) (*http.Response, error)
+	ResponsesCompact(context.Context, []byte) (*http.Response, error)
 }
 
 type Server struct {
@@ -48,6 +49,20 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.URL.Path == "/v1/models" && r.Method == http.MethodGet:
 		s.models(w, r)
+	case r.URL.Path == "/v1/responses":
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			writeOpenAIError(w, http.StatusMethodNotAllowed, "invalid_request", "method not allowed")
+			return
+		}
+		s.inference(w, r, "responses")
+	case r.URL.Path == "/v1/responses/compact":
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			writeOpenAIError(w, http.StatusMethodNotAllowed, "invalid_request", "method not allowed")
+			return
+		}
+		s.responsesCompact(w, r)
 	case r.URL.Path == "/v1/chat/completions" && r.Method == http.MethodPost:
 		s.inference(w, r, "chat")
 	case r.URL.Path == "/v1/messages":

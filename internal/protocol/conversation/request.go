@@ -27,6 +27,8 @@ func ConvertRequestWithOptions(body []byte, model, operation string) ([]byte, Re
 		return converted, ResponseOptions{}, err
 	case OperationMessages:
 		return convertMessagesRequest(body, model)
+	case OperationResponses:
+		return append([]byte(nil), body...), ResponseOptions{}, nil
 	default:
 		converted, err := replaceModel(body, model)
 		return converted, ResponseOptions{}, err

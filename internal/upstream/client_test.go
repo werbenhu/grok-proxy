@@ -47,7 +47,12 @@ func TestClientUsesAPIKeyHeadersAndPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = response.Body.Close()
-	if strings.Join(paths, ",") != "/v1/models,/v1/responses" {
+	compact, err := client.ResponsesCompact(context.Background(), []byte(`{"model":"grok-4","input":"hi"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = compact.Body.Close()
+	if strings.Join(paths, ",") != "/v1/models,/v1/responses,/v1/responses/compact" {
 		t.Fatalf("paths = %v", paths)
 	}
 }
