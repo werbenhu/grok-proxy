@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,14 @@ import (
 const maxResponseBodyBytes = 64 << 20
 
 func (s *Server) inference(w http.ResponseWriter, r *http.Request, operation string) {
+	s.inferenceRequest(w, r, operation, false)
+}
+
+func (s *Server) responsesCompact(w http.ResponseWriter, r *http.Request) {
+	s.inferenceRequest(w, r, conversation.OperationResponses, true)
+}
+
+func (s *Server) inferenceRequest(w http.ResponseWriter, r *http.Request, operation string, compact bool) {
 	body, err := io.ReadAll(io.LimitReader(r.Body, maxRequestBodyBytes+1))
 	if err != nil {
 		s.protocolError(w, operation, fmt.Errorf("读取请求体: %w", err))
@@ -30,6 +39,7 @@ func (s *Server) inference(w http.ResponseWriter, r *http.Request, operation str
 	var metadata struct {
 		Model     string          `json:"model"`
 		Stream    bool            `json:"stream"`
+		Input     json.RawMessage `json:"input"`
 		Messages  json.RawMessage `json:"messages"`
 		MaxTokens *int            `json:"max_tokens"`
 	}
@@ -37,13 +47,24 @@ func (s *Server) inference(w http.ResponseWriter, r *http.Request, operation str
 		s.protocolError(w, operation, fmt.Errorf("请求 JSON 无效: %w", err))
 		return
 	}
-	if strings.TrimSpace(metadata.Model) == "" || len(metadata.Messages) == 0 || string(metadata.Messages) == "null" {
-		s.protocolError(w, operation, errors.New("model and messages are required"))
-		return
-	}
-	if operation == conversation.OperationMessages && metadata.MaxTokens == nil {
-		s.protocolError(w, operation, errors.New("model, max_tokens, and messages are required"))
-		return
+	if operation == conversation.OperationResponses {
+		if strings.TrimSpace(metadata.Model) == "" || isMissingJSON(metadata.Input) {
+			s.protocolError(w, operation, errors.New("model and input are required"))
+			return
+		}
+		if compact && metadata.Stream {
+			s.protocolError(w, operation, errors.New("stream is not supported for responses compact"))
+			return
+		}
+	} else {
+		if strings.TrimSpace(metadata.Model) == "" || isMissingJSON(metadata.Messages) {
+			s.protocolError(w, operation, errors.New("model and messages are required"))
+			return
+		}
+		if operation == conversation.OperationMessages && metadata.MaxTokens == nil {
+			s.protocolError(w, operation, errors.New("model, max_tokens, and messages are required"))
+			return
+		}
 	}
 	converted, options, err := conversation.ConvertRequestWithOptions(body, metadata.Model, operation)
 	if err != nil {
@@ -54,7 +75,12 @@ func (s *Server) inference(w http.ResponseWriter, r *http.Request, operation str
 		s.handleError(w, operation, errors.New("上游未初始化"))
 		return
 	}
-	resp, err := s.upstream.Responses(r.Context(), converted, metadata.Stream)
+	var resp *http.Response
+	if compact {
+		resp, err = s.upstream.ResponsesCompact(r.Context(), converted)
+	} else {
+		resp, err = s.upstream.Responses(r.Context(), converted, metadata.Stream)
+	}
 	if err != nil {
 		s.handleError(w, operation, err)
 		return
@@ -92,6 +118,11 @@ func (s *Server) inference(w http.ResponseWriter, r *http.Request, operation str
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(resp.StatusCode)
 	_, _ = w.Write(convertedResponse)
+}
+
+func isMissingJSON(value json.RawMessage) bool {
+	trimmed := bytes.TrimSpace(value)
+	return len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null"))
 }
 
 func (s *Server) protocolError(w http.ResponseWriter, operation string, err error) {
