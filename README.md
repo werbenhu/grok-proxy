@@ -23,8 +23,6 @@ GrokProxy — 在本地为 Grok/xAI 提供 OpenAI 与 Anthropic 兼容 API。
 
 从 [Releases](../../releases) 下载对应平台的桌面程序：
 
-`v0.0.10` 起包含原生 OpenAI Responses、Responses Compact、图片与结构化工具输出透传。当前 fork 的 Windows x64 文件为 `GrokProxy-v0.0.10-windows-amd64.exe`。
-
 | 平台 | 文件 |
 | --- | --- |
 | Windows x64 | `GrokProxy-*-windows-amd64.exe` |
@@ -89,6 +87,5 @@ curl http://127.0.0.1:8181/v1/messages \
 
 - Windows：`%AppData%\GrokProxy\config.json`
 - macOS：`~/Library/Application Support/GrokProxy/config.json`
-- Linux：`$XDG_CONFIG_HOME/GrokProxy/config.json` 或 `~/.config/GrokProxy/config.json`
 
 本地代理密钥首次启动时自动生成并写入配置；不能为空，下次启动会继续使用同一密钥。

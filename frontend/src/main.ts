@@ -130,7 +130,7 @@ root.innerHTML = `
     <span><span data-i18n="requests"></span> <b id="total-requests">0</b></span>
     <span><span data-i18n="active"></span> <b id="active-requests">0</b></span>
     <span id="last-request"></span>
-    <span class="version">v0.0.10</span>
+    <span class="version">v0.1.0</span>
   </footer>
 </main>`
 

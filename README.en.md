@@ -23,8 +23,6 @@ Listens on `127.0.0.1:8181` by default; closing the app stops the proxy.
 
 Get the desktop app for your platform from [Releases](../../releases):
 
-Starting with `v0.0.10`, builds include native OpenAI Responses, Responses Compact, and passthrough for images and structured tool output. The Windows x64 artifact for this fork is `GrokProxy-v0.0.10-windows-amd64.exe`.
-
 | Platform | File |
 | --- | --- |
 | Windows x64 | `GrokProxy-*-windows-amd64.exe` |
@@ -89,6 +87,5 @@ Configuration is stored in the user config directory:
 
 - Windows: `%AppData%\GrokProxy\config.json`
 - macOS: `~/Library/Application Support/GrokProxy/config.json`
-- Linux: `$XDG_CONFIG_HOME/GrokProxy/config.json` or `~/.config/GrokProxy/config.json`
 
 A local proxy key is generated on first launch and written to config; it cannot be empty, and the same key is reused on later starts.
