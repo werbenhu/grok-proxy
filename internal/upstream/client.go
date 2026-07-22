@@ -31,12 +31,12 @@ type HTTPError struct {
 
 func (e *HTTPError) Error() string {
 	if e == nil {
-		return "xAI 上游返回未知错误"
+		return "xAI upstream returned an unknown error"
 	}
 	if detail := diagnosticSnippet(e.Body); detail != "" {
-		return fmt.Sprintf("xAI 上游返回 HTTP %d: %s", e.StatusCode, detail)
+		return fmt.Sprintf("xAI upstream returned HTTP %d: %s", e.StatusCode, detail)
 	}
-	return fmt.Sprintf("xAI 上游返回 HTTP %d", e.StatusCode)
+	return fmt.Sprintf("xAI upstream returned HTTP %d", e.StatusCode)
 }
 
 // diagnosticSnippet extracts a short, human-readable summary from an upstream error body.
@@ -123,14 +123,14 @@ func (c *Client) ResponsesCompact(ctx context.Context, body []byte) (*http.Respo
 
 func (c *Client) do(ctx context.Context, method, path string, body []byte, stream bool, model string) (*http.Response, error) {
 	if c.credentials == nil {
-		return nil, fmt.Errorf("缺少上游凭据源")
+		return nil, fmt.Errorf("missing upstream credential source")
 	}
 	authorization, err := c.credentials.Authorization(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if strings.TrimSpace(authorization.Token) == "" {
-		return nil, fmt.Errorf("上游凭据为空")
+		return nil, fmt.Errorf("upstream credential is empty")
 	}
 	baseURL := c.apiBaseURL
 	if authorization.Mode == ModeOAuth {

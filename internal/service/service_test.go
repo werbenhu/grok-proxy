@@ -164,7 +164,7 @@ func TestPermanentOAuthFailureRequiresReauthorization(t *testing.T) {
 		t.Fatalf("err=%v", err)
 	}
 	state := service.State()
-	if state.Status != StatusReauthorization || state.Config.HasCredential || !strings.Contains(state.LastError, "重新授权") {
+	if state.Status != StatusReauthorization || state.Config.HasCredential || !strings.Contains(state.LastError, "reauthorization") {
 		t.Fatalf("state=%+v", state)
 	}
 }

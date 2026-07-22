@@ -38,9 +38,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if !s.authorized(r) {
 		if r.URL.Path == "/v1/messages" {
-			writeAnthropicError(w, http.StatusUnauthorized, "authentication_error", "本地代理密钥无效")
+			writeAnthropicError(w, http.StatusUnauthorized, "authentication_error", "invalid local proxy key")
 		} else {
-			writeOpenAIError(w, http.StatusUnauthorized, "invalid_api_key", "本地代理密钥无效")
+			writeOpenAIError(w, http.StatusUnauthorized, "invalid_api_key", "invalid local proxy key")
 		}
 		return
 	}
@@ -77,7 +77,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		s.inference(w, r, "messages")
 	default:
-		writeOpenAIError(w, http.StatusNotFound, "not_found", "接口不存在")
+		writeOpenAIError(w, http.StatusNotFound, "not_found", "not found")
 	}
 }
 
@@ -100,7 +100,7 @@ func (s *Server) authorized(r *http.Request) bool {
 
 func (s *Server) models(w http.ResponseWriter, r *http.Request) {
 	if s.upstream == nil {
-		s.handleError(w, "chat", errors.New("上游未初始化"))
+		s.handleError(w, "chat", errors.New("upstream not initialized"))
 		return
 	}
 	resp, err := s.upstream.Models(r.Context())

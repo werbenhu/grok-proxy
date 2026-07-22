@@ -16,4 +16,12 @@ export const api = {
   clearCredential: (): Promise<AppState> => app().ClearCredential(),
   test: (): Promise<ConnectionTest> => app().TestConnection(),
   openURL: (url: string): Promise<void> => app().OpenURL(url),
+  setLocale: (locale: string): Promise<void> => {
+    // vite 浏览器开发模式没有 Wails 绑定，静默跳过托盘文案同步。
+    try {
+      return app().SetLocale(locale)
+    } catch {
+      return Promise.resolve()
+    }
+  },
 }

@@ -38,7 +38,7 @@ func ConvertRequestWithOptions(body []byte, model, operation string) ([]byte, Re
 func replaceModel(body []byte, model string) ([]byte, error) {
 	var payload map[string]json.RawMessage
 	if err := json.Unmarshal(body, &payload); err != nil {
-		return nil, fmt.Errorf("解析 Responses 请求: %w", err)
+		return nil, fmt.Errorf("parse Responses request: %w", err)
 	}
 	payload["model"] = mustJSON(model)
 	return json.Marshal(payload)
@@ -47,7 +47,7 @@ func replaceModel(body []byte, model string) ([]byte, error) {
 func convertResponseFormat(raw json.RawMessage) (json.RawMessage, error) {
 	var format map[string]json.RawMessage
 	if json.Unmarshal(raw, &format) != nil {
-		return nil, errors.New("response_format 无效")
+		return nil, errors.New("invalid response_format")
 	}
 	var typeName string
 	_ = json.Unmarshal(format["type"], &typeName)
@@ -56,7 +56,7 @@ func convertResponseFormat(raw json.RawMessage) (json.RawMessage, error) {
 	}
 	var schema map[string]json.RawMessage
 	if json.Unmarshal(format["json_schema"], &schema) != nil {
-		return nil, errors.New("response_format.json_schema 无效")
+		return nil, errors.New("invalid response_format.json_schema")
 	}
 	result := map[string]json.RawMessage{"type": mustJSON("json_schema")}
 	for key, value := range schema {
@@ -72,7 +72,7 @@ func contentAsText(raw json.RawMessage) (string, error) {
 	}
 	var arbitrary any
 	if json.Unmarshal(raw, &arbitrary) != nil {
-		return "", errors.New("tool content 无效")
+		return "", errors.New("invalid tool content")
 	}
 	encoded, _ := json.Marshal(arbitrary)
 	return string(encoded), nil

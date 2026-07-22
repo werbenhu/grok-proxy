@@ -59,7 +59,7 @@ func (c *OAuthClient) Start(ctx context.Context) (DeviceAuthorization, error) {
 		return DeviceAuthorization{}, err
 	}
 	if status < 200 || status >= 300 {
-		return DeviceAuthorization{}, fmt.Errorf("xAI Device OAuth 返回 HTTP %d: %s", status, diagnostic(body))
+		return DeviceAuthorization{}, fmt.Errorf("xAI Device OAuth returned HTTP %d: %s", status, diagnostic(body))
 	}
 	var value struct {
 		DeviceCode              string `json:"device_code"`
@@ -70,10 +70,10 @@ func (c *OAuthClient) Start(ctx context.Context) (DeviceAuthorization, error) {
 		ExpiresIn               int    `json:"expires_in"`
 	}
 	if err := json.Unmarshal(body, &value); err != nil {
-		return DeviceAuthorization{}, fmt.Errorf("解析 xAI Device OAuth: %w", err)
+		return DeviceAuthorization{}, fmt.Errorf("parse xAI Device OAuth: %w", err)
 	}
 	if value.DeviceCode == "" || value.UserCode == "" || value.VerificationURI == "" {
-		return DeviceAuthorization{}, fmt.Errorf("xAI Device OAuth 返回字段不完整")
+		return DeviceAuthorization{}, fmt.Errorf("xAI Device OAuth response missing fields")
 	}
 	if value.Interval <= 0 {
 		value.Interval = 5
@@ -114,7 +114,7 @@ func (c *OAuthClient) exchange(ctx context.Context, form url.Values, fallbackRef
 		ErrorDescription string `json:"error_description"`
 	}
 	if err := json.Unmarshal(body, &value); err != nil {
-		return Token{}, fmt.Errorf("解析 xAI OAuth: %w", err)
+		return Token{}, fmt.Errorf("parse xAI OAuth: %w", err)
 	}
 	if status < 200 || status >= 300 {
 		if fallbackRefresh != "" && (status == http.StatusUnauthorized || value.Error == "invalid_grant" || value.Error == "access_denied" || value.Error == "expired_token") {
@@ -132,7 +132,7 @@ func (c *OAuthClient) exchange(ctx context.Context, form url.Values, fallbackRef
 		}
 	}
 	if value.AccessToken == "" {
-		return Token{}, fmt.Errorf("xAI OAuth 响应缺少 access_token")
+		return Token{}, fmt.Errorf("xAI OAuth response missing access_token")
 	}
 	if value.ExpiresIn <= 0 {
 		value.ExpiresIn = 3600
@@ -160,7 +160,7 @@ func (c *OAuthClient) postForm(ctx context.Context, endpoint string, form url.Va
 		return nil, resp.StatusCode, err
 	}
 	if len(body) > maxOAuthResponseBytes {
-		return nil, resp.StatusCode, fmt.Errorf("xAI OAuth 响应过大")
+		return nil, resp.StatusCode, fmt.Errorf("xAI OAuth response too large")
 	}
 	return body, resp.StatusCode, nil
 }

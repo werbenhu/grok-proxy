@@ -25,7 +25,7 @@ func (s *Server) responsesCompact(w http.ResponseWriter, r *http.Request) {
 func (s *Server) inferenceRequest(w http.ResponseWriter, r *http.Request, operation string, compact bool) {
 	body, err := io.ReadAll(io.LimitReader(r.Body, maxRequestBodyBytes+1))
 	if err != nil {
-		s.protocolError(w, operation, fmt.Errorf("读取请求体: %w", err))
+		s.protocolError(w, operation, fmt.Errorf("read request body: %w", err))
 		return
 	}
 	if len(body) > maxRequestBodyBytes {
@@ -44,7 +44,7 @@ func (s *Server) inferenceRequest(w http.ResponseWriter, r *http.Request, operat
 		MaxTokens *int            `json:"max_tokens"`
 	}
 	if err := json.Unmarshal(body, &metadata); err != nil {
-		s.protocolError(w, operation, fmt.Errorf("请求 JSON 无效: %w", err))
+		s.protocolError(w, operation, fmt.Errorf("invalid request JSON: %w", err))
 		return
 	}
 	if operation == conversation.OperationResponses {
@@ -72,7 +72,7 @@ func (s *Server) inferenceRequest(w http.ResponseWriter, r *http.Request, operat
 		return
 	}
 	if s.upstream == nil {
-		s.handleError(w, operation, errors.New("上游未初始化"))
+		s.handleError(w, operation, errors.New("upstream not initialized"))
 		return
 	}
 	var resp *http.Response
@@ -86,7 +86,7 @@ func (s *Server) inferenceRequest(w http.ResponseWriter, r *http.Request, operat
 		return
 	}
 	if resp == nil || resp.Body == nil {
-		s.handleError(w, operation, errors.New("上游返回空响应"))
+		s.handleError(w, operation, errors.New("upstream returned empty response"))
 		return
 	}
 	defer resp.Body.Close()
@@ -107,7 +107,7 @@ func (s *Server) inferenceRequest(w http.ResponseWriter, r *http.Request, operat
 		return
 	}
 	if len(data) > maxResponseBodyBytes {
-		s.handleError(w, operation, errors.New("上游响应超过 64 MiB"))
+		s.handleError(w, operation, errors.New("upstream response exceeds 64 MiB"))
 		return
 	}
 	convertedResponse, err := conversation.ConvertResponseJSONWithOptions(data, operation, options)

@@ -82,7 +82,7 @@ func (c *streamConverter) handle(event string, data []byte) error {
 	}
 	var root map[string]json.RawMessage
 	if err := json.Unmarshal(data, &root); err != nil {
-		return fmt.Errorf("解析上游 SSE 事件: %w", err)
+		return fmt.Errorf("parse upstream SSE event: %w", err)
 	}
 	typeName := event
 	if raw := root["type"]; typeName == "" {
@@ -246,7 +246,7 @@ func (c *streamConverter) finish() error {
 	if c.finished {
 		return nil
 	}
-	return fmt.Errorf("上游 SSE 在完成事件前结束")
+	return fmt.Errorf("upstream SSE ended before completion event")
 }
 
 func (c *streamConverter) writeData(value any) error {
@@ -284,7 +284,7 @@ func consumeSSE(source io.Reader, handle func(string, []byte) error) error {
 				separator = 1
 			}
 			if data.Len()+separator+len(value) > maxSSEEventBytes {
-				return fmt.Errorf("上游 SSE 事件过大")
+				return fmt.Errorf("upstream SSE event too large")
 			}
 			if separator != 0 {
 				data.WriteByte('\n')
@@ -301,7 +301,7 @@ func consumeSSE(source io.Reader, handle func(string, []byte) error) error {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("上游 SSE 事件过大或无法读取: %w", err)
+		return fmt.Errorf("upstream SSE event too large or unreadable: %w", err)
 	}
 	if data.Len() > 0 {
 		return handle(event, []byte(data.String()))

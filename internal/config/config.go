@@ -87,30 +87,30 @@ func EnsureLocalKey(cfg Config) (Config, bool) {
 func Validate(cfg Config) error {
 	host := strings.TrimSpace(cfg.ListenHost)
 	if host == "" {
-		return errors.New("监听地址不能为空")
+		return errors.New("listen address must not be empty")
 	}
 	if ip := net.ParseIP(strings.Trim(host, "[]")); ip == nil && !strings.EqualFold(host, "localhost") {
-		return fmt.Errorf("监听地址 %q 无效", cfg.ListenHost)
+		return fmt.Errorf("invalid listen address %q", cfg.ListenHost)
 	}
 	if cfg.ListenPort < 1 || cfg.ListenPort > 65535 {
-		return errors.New("监听端口必须在 1 到 65535 之间")
+		return errors.New("listen port must be between 1 and 65535")
 	}
 	if strings.TrimSpace(cfg.LocalKey) == "" {
-		return errors.New("本地代理密钥不能为空")
+		return errors.New("local proxy key must not be empty")
 	}
 	switch cfg.AuthMode {
 	case AuthModeNone:
 		return nil
 	case AuthModeAPIKey:
 		if strings.TrimSpace(cfg.APIKey) == "" {
-			return errors.New("API Key 模式必须设置 xAI API Key")
+			return errors.New("API key mode requires xAI API key")
 		}
 	case AuthModeOAuth:
 		if strings.TrimSpace(cfg.OAuth.RefreshToken) == "" {
-			return errors.New("OAuth 模式缺少 refresh token，需要重新授权")
+			return errors.New("OAuth mode missing refresh token; reauthorization required")
 		}
 	default:
-		return fmt.Errorf("不支持的授权模式 %q", cfg.AuthMode)
+		return fmt.Errorf("unsupported auth mode %q", cfg.AuthMode)
 	}
 	return nil
 }

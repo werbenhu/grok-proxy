@@ -10,26 +10,26 @@ import (
 func convertMessagesRequest(body []byte, model string) ([]byte, ResponseOptions, error) {
 	var request anthropicRequest
 	if err := json.Unmarshal(body, &request); err != nil {
-		return nil, ResponseOptions{}, fmt.Errorf("解析 Messages 请求: %w", err)
+		return nil, ResponseOptions{}, fmt.Errorf("parse Messages request: %w", err)
 	}
 	if len(request.Messages) == 0 {
-		return nil, ResponseOptions{}, errors.New("messages 必须是非空数组")
+		return nil, ResponseOptions{}, errors.New("messages must be a non-empty array")
 	}
 	if request.MaxTokens <= 0 {
-		return nil, ResponseOptions{}, errors.New("max_tokens 必须是正整数")
+		return nil, ResponseOptions{}, errors.New("max_tokens must be a positive integer")
 	}
 	for name, value := range map[string]*float64{"temperature": request.Temperature, "top_p": request.TopP} {
 		if value != nil && (*value < 0 || *value > 1) {
-			return nil, ResponseOptions{}, fmt.Errorf("%s 必须在 0 到 1 之间", name)
+			return nil, ResponseOptions{}, fmt.Errorf("%s must be between 0 and 1", name)
 		}
 	}
 	for index, sequence := range request.StopSequences {
 		if sequence == "" {
-			return nil, ResponseOptions{}, fmt.Errorf("stop_sequences[%d] 不能为空", index)
+			return nil, ResponseOptions{}, fmt.Errorf("stop_sequences[%d] must not be empty", index)
 		}
 	}
 	if !isEmptyJSON(request.TopK) {
-		return nil, ResponseOptions{}, errors.New("Messages top_k 无法等价映射到 Responses API")
+		return nil, ResponseOptions{}, errors.New("Messages top_k cannot be mapped to the Responses API")
 	}
 	thinkingEnabled := false
 	if request.Thinking != nil {
@@ -38,7 +38,7 @@ func convertMessagesRequest(body []byte, model string) ([]byte, ResponseOptions,
 		case "enabled", "adaptive":
 			thinkingEnabled = true
 		default:
-			return nil, ResponseOptions{}, fmt.Errorf("不支持 thinking.type=%q", request.Thinking.Type)
+			return nil, ResponseOptions{}, fmt.Errorf("unsupported thinking.type=%q", request.Thinking.Type)
 		}
 	}
 	input, inlineInstructions, err := convertAnthropicMessages(request.Messages, anthropicDeclaredToolNames(request.Tools))
@@ -46,7 +46,7 @@ func convertMessagesRequest(body []byte, model string) ([]byte, ResponseOptions,
 		return nil, ResponseOptions{}, err
 	}
 	if len(input) == 0 {
-		return nil, ResponseOptions{}, errors.New("messages 中没有可发送的 user 或 assistant 内容")
+		return nil, ResponseOptions{}, errors.New("messages contain no sendable user or assistant content")
 	}
 	target := map[string]any{
 		"model": model, "input": input, "stream": request.Stream,
@@ -71,7 +71,7 @@ func convertMessagesRequest(body []byte, model string) ([]byte, ResponseOptions,
 	}
 	if request.OutputConfig != nil && request.OutputConfig.Format != nil {
 		if request.OutputConfig.Format.Type != "json_schema" || request.OutputConfig.Format.Schema == nil {
-			return nil, ResponseOptions{}, errors.New("output_config.format 必须是带 schema 的 json_schema")
+			return nil, ResponseOptions{}, errors.New("output_config.format must be a json_schema with a schema")
 		}
 		target["text"] = map[string]any{"format": map[string]any{"type": "json_schema", "name": "anthropic_output", "schema": request.OutputConfig.Format.Schema}}
 	}
@@ -87,7 +87,7 @@ func convertMessagesRequest(body []byte, model string) ([]byte, ResponseOptions,
 			effort = "high"
 		case "low", "medium", "high":
 		default:
-			return nil, ResponseOptions{}, fmt.Errorf("不支持 output_config.effort=%q", effort)
+			return nil, ResponseOptions{}, fmt.Errorf("unsupported output_config.effort=%q", effort)
 		}
 		target["reasoning"] = map[string]any{"effort": effort, "summary": "detailed"}
 		target["include"] = []any{"reasoning.encrypted_content"}
@@ -170,7 +170,7 @@ func convertAnthropicMessages(messages []anthropicMessage, declaredTools map[str
 		if role == "system" || role == "developer" {
 			text, err := anthropicSystemText(message.Content)
 			if err != nil {
-				return nil, nil, fmt.Errorf("messages[%d] %s 内容无效: %w", messageIndex, role, err)
+				return nil, nil, fmt.Errorf("messages[%d] invalid %s content: %w", messageIndex, role, err)
 			}
 			if text != "" {
 				instructions = append(instructions, text)
@@ -178,22 +178,22 @@ func convertAnthropicMessages(messages []anthropicMessage, declaredTools map[str
 			continue
 		}
 		if role != "user" && role != "assistant" {
-			return nil, nil, fmt.Errorf("Messages API 不支持 role=%q", message.Role)
+			return nil, nil, fmt.Errorf("Messages API does not support role=%q", message.Role)
 		}
 		if len(pendingCalls) > 0 && role != "user" {
-			return nil, nil, fmt.Errorf("messages[%d] 必须是包含 tool_result 的 user 消息", messageIndex)
+			return nil, nil, fmt.Errorf("messages[%d] must be a user message containing tool_result", messageIndex)
 		}
 		var text string
 		if json.Unmarshal(message.Content, &text) == nil {
 			if len(pendingCalls) > 0 {
-				return nil, nil, fmt.Errorf("messages[%d] 必须返回全部待处理 tool_use", messageIndex)
+				return nil, nil, fmt.Errorf("messages[%d] must return all pending tool_use", messageIndex)
 			}
 			input = append(input, map[string]any{"type": "message", "role": role, "content": text})
 			continue
 		}
 		var blocks []map[string]json.RawMessage
 		if json.Unmarshal(message.Content, &blocks) != nil {
-			return nil, nil, fmt.Errorf("messages[%d].content 必须是字符串或内容块数组", messageIndex)
+			return nil, nil, fmt.Errorf("messages[%d].content must be a string or content block array", messageIndex)
 		}
 		hadPending := len(pendingCalls) > 0
 		regularBeforeResult := false
@@ -213,7 +213,7 @@ func convertAnthropicMessages(messages []anthropicMessage, declaredTools map[str
 				regularBeforeResult = regularBeforeResult || len(pendingCalls) > 0
 				var value string
 				if json.Unmarshal(block["text"], &value) != nil {
-					return nil, nil, fmt.Errorf("%s.text 无效", path)
+					return nil, nil, fmt.Errorf("invalid %s.text", path)
 				}
 				messageParts = append(messageParts, map[string]any{"type": "input_text", "text": value})
 			case "image":
@@ -232,7 +232,7 @@ func convertAnthropicMessages(messages []anthropicMessage, declaredTools map[str
 				messageParts = append(messageParts, document)
 			case "tool_use":
 				if role != "assistant" {
-					return nil, nil, fmt.Errorf("%s tool_use 只允许出现在 assistant 消息", path)
+					return nil, nil, fmt.Errorf("%s tool_use is only allowed in assistant messages", path)
 				}
 				flushMessage()
 				var value struct {
@@ -241,10 +241,10 @@ func convertAnthropicMessages(messages []anthropicMessage, declaredTools map[str
 					Input map[string]any `json:"input"`
 				}
 				if encoded, _ := json.Marshal(block); json.Unmarshal(encoded, &value) != nil || strings.TrimSpace(value.ID) == "" || strings.TrimSpace(value.Name) == "" || value.Input == nil {
-					return nil, nil, fmt.Errorf("%s 缺少有效 id、name 或 object input", path)
+					return nil, nil, fmt.Errorf("%s missing valid id, name, or object input", path)
 				}
 				if _, exists := usedCalls[value.ID]; exists {
-					return nil, nil, fmt.Errorf("%s 包含重复 tool_use id %q", path, value.ID)
+					return nil, nil, fmt.Errorf("%s contains duplicate tool_use id %q", path, value.ID)
 				}
 				arguments, _ := json.Marshal(value.Input)
 				input = append(input, map[string]any{"type": "function_call", "call_id": value.ID, "name": value.Name, "arguments": string(arguments)})
@@ -252,16 +252,16 @@ func convertAnthropicMessages(messages []anthropicMessage, declaredTools map[str
 				usedCalls[value.ID] = struct{}{}
 			case "tool_result":
 				if role != "user" {
-					return nil, nil, fmt.Errorf("%s tool_result 只允许出现在 user 消息", path)
+					return nil, nil, fmt.Errorf("%s tool_result is only allowed in user messages", path)
 				}
 				flushMessage()
 				var toolUseID string
 				_ = json.Unmarshal(block["tool_use_id"], &toolUseID)
 				if _, exists := pendingCalls[toolUseID]; strings.TrimSpace(toolUseID) == "" || !exists {
-					return nil, nil, fmt.Errorf("%s.tool_use_id %q 未匹配待处理 tool_use", path, toolUseID)
+					return nil, nil, fmt.Errorf("%s.tool_use_id %q does not match any pending tool_use", path, toolUseID)
 				}
 				if regularBeforeResult {
-					return nil, nil, fmt.Errorf("%s tool_result 必须位于文本、图片或文档块之前", path)
+					return nil, nil, fmt.Errorf("%s tool_result must precede text, image, or document blocks", path)
 				}
 				output, err := anthropicToolResult(block["content"], declaredTools)
 				if err != nil {
@@ -270,7 +270,7 @@ func convertAnthropicMessages(messages []anthropicMessage, declaredTools map[str
 				if raw := block["is_error"]; !isEmptyJSON(raw) {
 					var isError bool
 					if json.Unmarshal(raw, &isError) != nil {
-						return nil, nil, fmt.Errorf("%s.is_error 必须是布尔值", path)
+						return nil, nil, fmt.Errorf("%s.is_error must be a boolean", path)
 					}
 					if isError {
 						output = markAnthropicToolError(output)
@@ -280,7 +280,7 @@ func convertAnthropicMessages(messages []anthropicMessage, declaredTools map[str
 				delete(pendingCalls, toolUseID)
 			case "thinking":
 				if role != "assistant" {
-					return nil, nil, fmt.Errorf("%s thinking 只允许出现在 assistant 消息", path)
+					return nil, nil, fmt.Errorf("%s thinking is only allowed in assistant messages", path)
 				}
 				flushMessage()
 				var thinking, signature string
@@ -293,25 +293,25 @@ func convertAnthropicMessages(messages []anthropicMessage, declaredTools map[str
 				input = append(input, item)
 			case "redacted_thinking":
 				if role != "assistant" {
-					return nil, nil, fmt.Errorf("%s redacted_thinking 只允许出现在 assistant 消息", path)
+					return nil, nil, fmt.Errorf("%s redacted_thinking is only allowed in assistant messages", path)
 				}
 				flushMessage()
 				var data string
 				if json.Unmarshal(block["data"], &data) != nil || data == "" {
-					return nil, nil, fmt.Errorf("%s.data 无效", path)
+					return nil, nil, fmt.Errorf("invalid %s.data", path)
 				}
 				input = append(input, map[string]any{"type": "reasoning", "encrypted_content": data})
 			default:
-				return nil, nil, fmt.Errorf("当前不支持 Anthropic content.type=%q", typeName)
+				return nil, nil, fmt.Errorf("Anthropic content.type=%q is not supported", typeName)
 			}
 		}
 		flushMessage()
 		if hadPending && len(pendingCalls) > 0 {
-			return nil, nil, fmt.Errorf("messages[%d] 必须返回全部待处理 tool_use", messageIndex)
+			return nil, nil, fmt.Errorf("messages[%d] must return all pending tool_use", messageIndex)
 		}
 	}
 	if len(pendingCalls) > 0 {
-		return nil, nil, errors.New("messages 必须为每个 tool_use 提供 tool_result")
+		return nil, nil, errors.New("messages must provide a tool_result for every tool_use")
 	}
 	return input, instructions, nil
 }
@@ -329,12 +329,12 @@ func anthropicSystemText(raw json.RawMessage) (string, error) {
 		Text string `json:"text"`
 	}
 	if json.Unmarshal(raw, &blocks) != nil {
-		return "", errors.New("system 必须是字符串或 text block 数组")
+		return "", errors.New("system must be a string or text block array")
 	}
 	parts := make([]string, 0, len(blocks))
 	for _, block := range blocks {
 		if block.Type != "text" {
-			return "", fmt.Errorf("system 不支持 type=%q", block.Type)
+			return "", fmt.Errorf("system does not support type=%q", block.Type)
 		}
 		parts = append(parts, block.Text)
 	}
@@ -349,21 +349,21 @@ func anthropicImageURL(raw json.RawMessage) (string, error) {
 		URL       string `json:"url"`
 	}
 	if json.Unmarshal(raw, &source) != nil {
-		return "", errors.New("image.source 无效")
+		return "", errors.New("invalid image.source")
 	}
 	switch source.Type {
 	case "base64":
 		if source.MediaType == "" || source.Data == "" {
-			return "", errors.New("base64 image 缺少 media_type 或 data")
+			return "", errors.New("base64 image missing media_type or data")
 		}
 		return "data:" + source.MediaType + ";base64," + source.Data, nil
 	case "url":
 		if strings.TrimSpace(source.URL) == "" {
-			return "", errors.New("url image 缺少 url")
+			return "", errors.New("url image missing url")
 		}
 		return source.URL, nil
 	default:
-		return "", fmt.Errorf("不支持 image.source.type=%q", source.Type)
+		return "", fmt.Errorf("unsupported image.source.type=%q", source.Type)
 	}
 }
 
@@ -375,19 +375,19 @@ func anthropicDocument(block map[string]json.RawMessage) (map[string]any, error)
 		URL       string `json:"url"`
 	}
 	if json.Unmarshal(block["source"], &source) != nil {
-		return nil, errors.New("document.source 无效")
+		return nil, errors.New("invalid document.source")
 	}
 	var title string
 	_ = json.Unmarshal(block["title"], &title)
 	switch source.Type {
 	case "text":
 		if source.Data == "" {
-			return nil, errors.New("text document 缺少 data")
+			return nil, errors.New("text document missing data")
 		}
 		return map[string]any{"type": "input_text", "text": source.Data}, nil
 	case "url":
 		if strings.TrimSpace(source.URL) == "" {
-			return nil, errors.New("url document 缺少 url")
+			return nil, errors.New("url document missing url")
 		}
 		value := map[string]any{"type": "input_file", "file_url": source.URL}
 		if title != "" {
@@ -396,7 +396,7 @@ func anthropicDocument(block map[string]json.RawMessage) (map[string]any, error)
 		return value, nil
 	case "base64":
 		if source.MediaType == "" || source.Data == "" {
-			return nil, errors.New("base64 document 缺少 media_type 或 data")
+			return nil, errors.New("base64 document missing media_type or data")
 		}
 		value := map[string]any{"type": "input_file", "file_data": "data:" + source.MediaType + ";base64," + source.Data}
 		if title != "" {
@@ -404,7 +404,7 @@ func anthropicDocument(block map[string]json.RawMessage) (map[string]any, error)
 		}
 		return value, nil
 	default:
-		return nil, fmt.Errorf("不支持 document.source.type=%q", source.Type)
+		return nil, fmt.Errorf("unsupported document.source.type=%q", source.Type)
 	}
 }
 
@@ -418,7 +418,7 @@ func anthropicToolResult(raw json.RawMessage, declaredTools map[string]struct{})
 	}
 	var blocks []map[string]json.RawMessage
 	if json.Unmarshal(raw, &blocks) != nil {
-		return "", errors.New("tool_result.content 无效")
+		return "", errors.New("invalid tool_result.content")
 	}
 	parts := make([]any, 0, len(blocks))
 	for _, block := range blocks {
@@ -428,7 +428,7 @@ func anthropicToolResult(raw json.RawMessage, declaredTools map[string]struct{})
 		case "text":
 			var value string
 			if json.Unmarshal(block["text"], &value) != nil {
-				return nil, errors.New("tool_result text 无效")
+				return nil, errors.New("invalid tool_result text")
 			}
 			parts = append(parts, map[string]any{"type": "input_text", "text": value})
 		case "image":
@@ -446,11 +446,11 @@ func anthropicToolResult(raw json.RawMessage, declaredTools map[string]struct{})
 		case "tool_reference":
 			var toolName string
 			if json.Unmarshal(block["tool_name"], &toolName) != nil || strings.TrimSpace(toolName) == "" {
-				return nil, errors.New("tool_reference.tool_name 无效")
+				return nil, errors.New("invalid tool_reference.tool_name")
 			}
 			toolName = strings.TrimSpace(toolName)
 			if _, exists := declaredTools[toolName]; !exists {
-				return nil, fmt.Errorf("tool_reference 引用了未声明的工具 %q", toolName)
+				return nil, fmt.Errorf("tool_reference references undeclared tool %q", toolName)
 			}
 			// Responses 没有 Anthropic tool_reference 内容块。Messages 请求中的全部
 			// 工具定义已发送给上游，因此用确定性的结果文本保留“搜索命中”语义。
@@ -459,7 +459,7 @@ func anthropicToolResult(raw json.RawMessage, declaredTools map[string]struct{})
 				"text": fmt.Sprintf("Tool search matched declared tool %q; its definition is available in this request.", toolName),
 			})
 		default:
-			return nil, fmt.Errorf("tool_result 暂不支持 type=%q", typeName)
+			return nil, fmt.Errorf("tool_result does not support type=%q", typeName)
 		}
 	}
 	return parts, nil
@@ -500,25 +500,25 @@ func convertAnthropicTools(tools []map[string]json.RawMessage) ([]any, error) {
 			continue
 		}
 		if typeName != "" && typeName != "custom" {
-			return nil, fmt.Errorf("当前不支持 Anthropic server tool type=%q", typeName)
+			return nil, fmt.Errorf("Anthropic server tool type=%q is not supported", typeName)
 		}
 		var name, description string
 		_ = json.Unmarshal(tool["name"], &name)
 		_ = json.Unmarshal(tool["description"], &description)
 		if strings.TrimSpace(name) == "" {
-			return nil, errors.New("Anthropic tool 缺少 name")
+			return nil, errors.New("Anthropic tool missing name")
 		}
 		var schema any = map[string]any{"type": "object", "properties": map[string]any{}}
 		if raw := tool["input_schema"]; !isEmptyJSON(raw) {
 			if json.Unmarshal(raw, &schema) != nil {
-				return nil, fmt.Errorf("tool %q 的 input_schema 无效", name)
+				return nil, fmt.Errorf("invalid input_schema for tool %q", name)
 			}
 		}
 		converted := map[string]any{"type": "function", "name": name, "description": description, "parameters": schema}
 		var strict bool
 		if raw := tool["strict"]; !isEmptyJSON(raw) {
 			if json.Unmarshal(raw, &strict) != nil {
-				return nil, fmt.Errorf("tool %q 的 strict 必须是布尔值", name)
+				return nil, fmt.Errorf("strict for tool %q must be a boolean", name)
 			}
 			converted["strict"] = strict
 		}
@@ -536,25 +536,25 @@ func convertAnthropicWebSearchTool(tool map[string]json.RawMessage, index int) (
 		case "max_uses", "allowed_domains", "blocked_domains", "user_location":
 			var value any
 			if json.Unmarshal(raw, &value) != nil {
-				return nil, fmt.Errorf("tools[%d].%s 无效", index, key)
+				return nil, fmt.Errorf("invalid tools[%d].%s", index, key)
 			}
 			if key == "allowed_domains" || key == "blocked_domains" {
 				domains, ok := value.([]any)
 				if !ok {
-					return nil, fmt.Errorf("tools[%d].%s 必须是字符串数组", index, key)
+					return nil, fmt.Errorf("tools[%d].%s must be a string array", index, key)
 				}
 				if len(domains) > 5 {
-					return nil, fmt.Errorf("tools[%d].%s 不能超过 5 个域名", index, key)
+					return nil, fmt.Errorf("tools[%d].%s must not exceed 5 domains", index, key)
 				}
 				for domainIndex, domain := range domains {
 					if text, ok := domain.(string); !ok || strings.TrimSpace(text) == "" {
-						return nil, fmt.Errorf("tools[%d].%s[%d] 必须是非空字符串", index, key, domainIndex)
+						return nil, fmt.Errorf("tools[%d].%s[%d] must be a non-empty string", index, key, domainIndex)
 					}
 				}
 			}
 			converted[key] = value
 		default:
-			return nil, fmt.Errorf("Grok Build 0.2.99 不支持 Anthropic web search 字段 tools[%d].%s", index, key)
+			return nil, fmt.Errorf("Grok Build 0.2.99 does not support Anthropic web search field tools[%d].%s", index, key)
 		}
 	}
 	return converted, nil
@@ -572,7 +572,7 @@ func convertAnthropicMCPServers(servers []anthropicMCPServer) ([]any, error) {
 		name := strings.TrimSpace(server.Name)
 		url := strings.TrimSpace(server.URL)
 		if name == "" || url == "" {
-			return nil, fmt.Errorf("mcp_servers[%d] 缺少 name 或 url", index)
+			return nil, fmt.Errorf("mcp_servers[%d] missing name or url", index)
 		}
 		tool := map[string]any{"type": "mcp", "server_label": name, "server_url": url}
 		if server.AuthorizationToken != "" {
@@ -603,10 +603,10 @@ func convertAnthropicToolChoice(choice anthropicToolChoice) (any, bool, error) {
 		return "required", parallel, nil
 	case "tool":
 		if strings.TrimSpace(choice.Name) == "" {
-			return nil, false, errors.New("tool_choice.tool 缺少 name")
+			return nil, false, errors.New("tool_choice.tool missing name")
 		}
 		return map[string]any{"type": "function", "name": choice.Name}, parallel, nil
 	default:
-		return nil, false, fmt.Errorf("不支持 tool_choice.type=%q", choice.Type)
+		return nil, false, fmt.Errorf("unsupported tool_choice.type=%q", choice.Type)
 	}
 }

@@ -251,6 +251,8 @@ function render(next: AppState) {
 
 function switchLocale(locale: Locale) {
   setLocale(locale)
+  // 同步给 Go 端，更新系统托盘菜单文案。
+  void api.setLocale(locale)
   if (state) render(state)
   else applyStaticI18n()
 }
@@ -464,6 +466,8 @@ document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((button) => 
 
 async function bootstrap() {
   setLocale(getLocale())
+  // 启动时把持久化的语言同步给 Go 端托盘菜单。
+  void api.setLocale(getLocale())
   initTheme()
   applyStaticI18n()
   switchAuthTab(authTab)

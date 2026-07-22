@@ -165,7 +165,7 @@ func TestConvertAnthropicClaudeCodeRequestToResponses(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !options.AnthropicThinking {
-		t.Fatal("thinking option 未保留")
+		t.Fatal("thinking option not preserved")
 	}
 	var payload map[string]any
 	if err := json.Unmarshal(converted, &payload); err != nil {
@@ -203,7 +203,7 @@ func TestConvertAnthropicToolReferenceValidatesDeclaredTool(t *testing.T) {
 		"tools":[{"name":"SearchTools","input_schema":{"type":"object"}}]
 	}`)
 	_, _, err := ConvertRequestWithOptions(body, "grok-4.5", OperationMessages)
-	if err == nil || !strings.Contains(err.Error(), `未声明的工具 "Missing"`) {
+	if err == nil || !strings.Contains(err.Error(), `undeclared tool "Missing"`) {
 		t.Fatalf("error = %v", err)
 	}
 }
@@ -214,10 +214,10 @@ func TestConvertAnthropicMessagesValidatesToolRelationships(t *testing.T) {
 		messages string
 		want     string
 	}{
-		{name: "orphan result", messages: `[{"role":"user","content":[{"type":"tool_result","tool_use_id":"missing","content":"x"}]}]`, want: "未匹配"},
-		{name: "missing result", messages: `[{"role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"Read","input":{}}]}]`, want: "提供 tool_result"},
-		{name: "result after text", messages: `[{"role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"Read","input":{}}]},{"role":"user","content":[{"type":"text","text":"late"},{"type":"tool_result","tool_use_id":"toolu_1","content":"x"}]}]`, want: "必须位于"},
-		{name: "user tool use", messages: `[{"role":"user","content":[{"type":"tool_use","id":"toolu_1","name":"Read","input":{}}]}]`, want: "只允许"},
+		{name: "orphan result", messages: `[{"role":"user","content":[{"type":"tool_result","tool_use_id":"missing","content":"x"}]}]`, want: "does not match"},
+		{name: "missing result", messages: `[{"role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"Read","input":{}}]}]`, want: "provide a tool_result"},
+		{name: "result after text", messages: `[{"role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"Read","input":{}}]},{"role":"user","content":[{"type":"text","text":"late"},{"type":"tool_result","tool_use_id":"toolu_1","content":"x"}]}]`, want: "must precede"},
+		{name: "user tool use", messages: `[{"role":"user","content":[{"type":"tool_use","id":"toolu_1","name":"Read","input":{}}]}]`, want: "is only allowed"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -455,7 +455,7 @@ func TestConvertResponsesStreamToMessagesThinkingToolsAndStop(t *testing.T) {
 	for _, expected := range ordered {
 		index := strings.Index(text[position:], expected)
 		if index < 0 {
-			t.Fatalf("%q 缺失或乱序:\n%s", expected, text)
+			t.Fatalf("%q missing or out of order:\n%s", expected, text)
 		}
 		position += index + len(expected)
 	}
@@ -527,7 +527,7 @@ func TestConvertResponsesStreamRejectsMalformedAndIncompleteEvents(t *testing.T)
 func TestConvertResponsesStreamBoundsEventSize(t *testing.T) {
 	stream := "data: " + strings.Repeat("x", maxSSEEventBytes+1) + "\n\n"
 	_, err := io.ReadAll(ConvertResponseStream(io.NopCloser(strings.NewReader(stream)), OperationMessages))
-	if err == nil || !strings.Contains(err.Error(), "过大") {
+	if err == nil || !strings.Contains(err.Error(), "too large") {
 		t.Fatalf("err=%v", err)
 	}
 }

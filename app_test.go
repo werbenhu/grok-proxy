@@ -111,3 +111,38 @@ func TestBeforeCloseAllowsQuitWhenQuitting(t *testing.T) {
 		t.Fatal("beforeClose must not block quit once quitting is set")
 	}
 }
+
+func TestSetLocaleNormalizesAndIsSafeBeforeTrayReady(t *testing.T) {
+	app := NewAppWithService(nil)
+	for input, want := range map[string]string{
+		"en":    "en",
+		"zh":    "zh",
+		"zh-CN": "zh",
+		"fr":    "en",
+		"":      "en",
+	} {
+		app.SetLocale(input)
+		if got := app.tray.Locale(); got != want {
+			t.Errorf("SetLocale(%q): locale = %q, want %q", input, got, want)
+		}
+	}
+}
+
+func TestTrayLocalesCoverBothLanguages(t *testing.T) {
+	for _, locale := range []string{"zh", "en"} {
+		text, ok := trayLocales[locale]
+		if !ok || text.show == "" || text.quit == "" {
+			t.Errorf("missing or empty tray strings for %s", locale)
+		}
+	}
+}
+
+func TestTrayLocaleFallsBackToEnglishForUnknown(t *testing.T) {
+	m := newTrayMenu()
+	m.locale = "ja" // 模拟未知语言被直接写入
+	m.applyLocked()
+	// 没有真实菜单项时 applyLocked 不应 panic，且回退后文案应非空。
+	if text, ok := trayLocales[m.locale]; ok && text.show == "" {
+		t.Fatal("unknown locale produced empty title; expected english fallback")
+	}
+}

@@ -3,9 +3,9 @@ package auth
 import "errors"
 
 var (
-	ErrAuthorizationPending    = errors.New("等待用户完成 Grok 授权")
-	ErrSlowDown                = errors.New("Grok 授权轮询过快")
-	ErrAuthorizationDenied     = errors.New("Grok 授权已拒绝或过期")
-	ErrCredentialMissing       = errors.New("尚未配置 Grok 凭据")
-	ErrReauthorizationRequired = errors.New("Grok 授权已失效，需要重新授权")
+	ErrAuthorizationPending    = errors.New("waiting for user to complete Grok authorization")
+	ErrSlowDown                = errors.New("Grok authorization polling too fast")
+	ErrAuthorizationDenied     = errors.New("Grok authorization denied or expired")
+	ErrCredentialMissing       = errors.New("Grok credential not configured")
+	ErrReauthorizationRequired = errors.New("Grok authorization expired; reauthorization required")
 )

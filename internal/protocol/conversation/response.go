@@ -79,7 +79,7 @@ func ConvertResponseJSONWithOptions(body []byte, operation string, options Respo
 	}
 	var envelope responseEnvelope
 	if err := json.Unmarshal(body, &envelope); err != nil {
-		return nil, fmt.Errorf("解析 Responses 响应: %w", err)
+		return nil, fmt.Errorf("parse Responses response: %w", err)
 	}
 	if envelope.Error != nil {
 		if operation == OperationMessages {

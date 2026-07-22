@@ -14,6 +14,7 @@ declare global {
           ClearCredential(): Promise<AppState>
           TestConnection(): Promise<ConnectionTest>
           OpenURL(url: string): Promise<void>
+          SetLocale(locale: string): Promise<void>
         }
       }
     }

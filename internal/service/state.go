@@ -48,7 +48,7 @@ func endpointState(cfg config.Config) (string, string, string) {
 
 func formatModelCount(count int) string {
 	if count == 0 {
-		return "连接成功"
+		return "connected"
 	}
-	return fmt.Sprintf("连接成功，发现 %d 个模型", count)
+	return fmt.Sprintf("connected, %d models found", count)
 }

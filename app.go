@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -23,12 +24,68 @@ type App struct {
 	service       *service.Service
 	configWarning string
 	quitting      atomic.Bool
+	tray          *trayMenu
+}
+
+// 托盘菜单文案，跟随前端语言切换。
+var trayLocales = map[string]struct{ show, quit string }{
+	"zh": {show: "打开主界面", quit: "退出"},
+	"en": {show: "Open GrokProxy", quit: "Quit"},
+}
+
+// trayMenu 持有托盘菜单项引用与当前语言。菜单在 systray 自己的 goroutine
+// 上创建，而 SetLocale 由前端随时调用，两边用互斥锁串行化。
+type trayMenu struct {
+	mu     sync.Mutex
+	locale string
+	show   *systray.MenuItem
+	quit   *systray.MenuItem
+}
+
+func newTrayMenu() *trayMenu { return &trayMenu{locale: "zh"} }
+
+// normalizeTrayLocale 与前端 detectLocale 的回退规则保持一致：
+// 中文（含 zh-CN 等变体）用 zh，其余一律用 en。
+func normalizeTrayLocale(locale string) string {
+	if strings.HasPrefix(strings.ToLower(locale), "zh") {
+		return "zh"
+	}
+	return "en"
+}
+
+func (m *trayMenu) setLocale(locale string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.locale = normalizeTrayLocale(locale)
+	m.applyLocked()
+}
+
+// locale 返回当前语言快照，供测试断言使用。
+func (m *trayMenu) Locale() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.locale
+}
+
+// applyLocked 在菜单项尚未创建时只是记住语言，等托盘就绪后再生效。
+func (m *trayMenu) applyLocked() {
+	text, ok := trayLocales[m.locale]
+	if !ok || text.show == "" {
+		// 未知语言或缺词条时回退到英文，避免菜单出现空标题。
+		text = trayLocales["en"]
+	}
+	if m.show != nil {
+		m.show.SetTitle(text.show)
+	}
+	if m.quit != nil {
+		m.quit.SetTitle(text.quit)
+	}
 }
 
 func NewApp() (*App, error) {
 	directory, err := os.UserConfigDir()
 	if err != nil {
-		return nil, fmt.Errorf("获取用户配置目录: %w", err)
+		return nil, fmt.Errorf("get user config dir: %w", err)
 	}
 	store := config.NewStore(filepath.Join(directory, "GrokProxy", "config.json"))
 	configWarning := ""
@@ -37,7 +94,7 @@ func NewApp() (*App, error) {
 		if recoverErr != nil {
 			return nil, errors.Join(err, recoverErr)
 		}
-		configWarning = fmt.Sprintf("原配置无效，已备份到 %s 并恢复默认设置", backup)
+		configWarning = fmt.Sprintf("invalid config backed up to %s; defaults restored", backup)
 	}
 	svc, err := service.New(store, nil, nil)
 	if err != nil {
@@ -48,7 +105,9 @@ func NewApp() (*App, error) {
 	return app, nil
 }
 
-func NewAppWithService(svc *service.Service) *App { return &App{service: svc} }
+func NewAppWithService(svc *service.Service) *App {
+	return &App{service: svc, tray: newTrayMenu()}
+}
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
@@ -82,9 +141,13 @@ func (a *App) initSystray() {
 		systray.SetIcon(trayIcon)
 		systray.SetTooltip("GrokProxy")
 
-		mShow := systray.AddMenuItem("打开主界面", "")
+		a.tray.mu.Lock()
+		a.tray.show = systray.AddMenuItem("", "")
 		systray.AddSeparator()
-		mQuit := systray.AddMenuItem("退出", "")
+		a.tray.quit = systray.AddMenuItem("", "")
+		a.tray.applyLocked()
+		mShow, mQuit := a.tray.show, a.tray.quit
+		a.tray.mu.Unlock()
 
 		mShow.Click(func() {
 			runtime.WindowShow(a.ctx)
@@ -97,6 +160,10 @@ func (a *App) initSystray() {
 		})
 	}, nil)
 }
+
+// SetLocale 由前端在切换语言时调用，同步更新托盘菜单文案；前端启动时
+// 也会调用一次，保证持久化的语言选择对托盘生效。
+func (a *App) SetLocale(locale string) { a.tray.setLocale(locale) }
 
 func (a *App) shutdown(ctx context.Context) { _ = a.service.Stop(ctx) }
 
@@ -131,7 +198,7 @@ func (a *App) OpenURL(raw string) error {
 		return err
 	}
 	if a.ctx == nil {
-		return fmt.Errorf("应用尚未启动")
+		return fmt.Errorf("app not started")
 	}
 	runtime.BrowserOpenURL(a.ctx, raw)
 	return nil
@@ -147,14 +214,14 @@ func (a *App) context() context.Context {
 func validateOpenURL(raw string) error {
 	parsed, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil {
-		return fmt.Errorf("URL 无效: %w", err)
+		return fmt.Errorf("invalid URL: %w", err)
 	}
 	if parsed.Scheme != "https" || parsed.User != nil || parsed.Hostname() == "" {
-		return fmt.Errorf("只允许打开安全的 xAI 授权地址")
+		return fmt.Errorf("only secure xAI authorization URLs are allowed")
 	}
 	host := strings.ToLower(parsed.Hostname())
 	if host != "auth.x.ai" && host != "accounts.x.ai" {
-		return fmt.Errorf("不允许打开非 xAI 授权地址")
+		return fmt.Errorf("opening non-xAI authorization URLs is not allowed")
 	}
 	return nil
 }

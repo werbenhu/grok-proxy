@@ -52,7 +52,7 @@ type Service struct {
 
 func New(store *config.Store, oauthClient OAuthClient, httpClient *http.Client) (*Service, error) {
 	if store == nil {
-		return nil, errors.New("配置存储不能为空")
+		return nil, errors.New("config store must not be nil")
 	}
 	if oauthClient == nil {
 		oauthClient = auth.NewOAuthClient(httpClient)
@@ -85,7 +85,7 @@ func (s *Service) Start(ctx context.Context) error {
 	if err != nil {
 		s.status = StatusError
 		s.lastError = err.Error()
-		return fmt.Errorf("监听 %s: %w", cfg.Address(), err)
+		return fmt.Errorf("listen %s: %w", cfg.Address(), err)
 	}
 	s.startLocked(cfg, listener)
 	return nil
@@ -165,20 +165,20 @@ func (s *Service) Save(ctx context.Context, input Settings) (State, error) {
 			rollbackErr := s.restoreLocked(old)
 			if rollbackErr != nil {
 				s.status = StatusError
-				s.lastError = fmt.Sprintf("监听 %s 失败；恢复 %s 也失败: %v", candidate.Address(), old.Address(), rollbackErr)
+				s.lastError = fmt.Sprintf("listen %s failed; rollback to %s also failed: %v", candidate.Address(), old.Address(), rollbackErr)
 			} else {
 				s.lastError = listenErr.Error()
 			}
 			s.mu.Unlock()
 			shutdownServer(ctx, oldServer)
-			return s.State(), fmt.Errorf("监听 %s: %w", candidate.Address(), listenErr)
+			return s.State(), fmt.Errorf("listen %s: %w", candidate.Address(), listenErr)
 		}
 		if err := s.store.Save(candidate); err != nil {
 			_ = listener.Close()
 			rollbackErr := s.restoreLocked(old)
 			if rollbackErr != nil {
 				s.status = StatusError
-				s.lastError = fmt.Sprintf("保存配置失败；恢复 %s 也失败: %v", old.Address(), rollbackErr)
+				s.lastError = fmt.Sprintf("save config failed; rollback to %s also failed: %v", old.Address(), rollbackErr)
 			}
 			s.mu.Unlock()
 			shutdownServer(ctx, oldServer)

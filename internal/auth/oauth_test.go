@@ -100,7 +100,7 @@ func TestOAuthRejectsMissingFieldsAndOversizedResponses(t *testing.T) {
 
 	large := oauthServer(t, http.StatusOK, `{"access_token":"`+strings.Repeat("x", maxOAuthResponseBytes)+`"}`)
 	client = newTestOAuthClient(large.Client(), large.URL)
-	if _, err := client.Poll(context.Background(), "device"); err == nil || !strings.Contains(err.Error(), "过大") {
+	if _, err := client.Poll(context.Background(), "device"); err == nil || !strings.Contains(err.Error(), "too large") {
 		t.Fatalf("err = %v", err)
 	}
 	large.Close()
