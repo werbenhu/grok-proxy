@@ -23,6 +23,8 @@ Listens on `127.0.0.1:8181` by default; closing the app stops the proxy.
 
 Get the desktop app for your platform from [Releases](../../releases):
 
+Starting with `v0.0.10`, builds include native OpenAI Responses, Responses Compact, and passthrough for images and structured tool output. The Windows x64 artifact for this fork is `GrokProxy-v0.0.10-windows-amd64.exe`.
+
 | Platform | File |
 | --- | --- |
 | Windows x64 | `GrokProxy-*-windows-amd64.exe` |

@@ -23,6 +23,8 @@ GrokProxy — 在本地为 Grok/xAI 提供 OpenAI 与 Anthropic 兼容 API。
 
 从 [Releases](../../releases) 下载对应平台的桌面程序：
 
+`v0.0.10` 起包含原生 OpenAI Responses、Responses Compact、图片与结构化工具输出透传。当前 fork 的 Windows x64 文件为 `GrokProxy-v0.0.10-windows-amd64.exe`。
+
 | 平台 | 文件 |
 | --- | --- |
 | Windows x64 | `GrokProxy-*-windows-amd64.exe` |
