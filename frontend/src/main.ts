@@ -13,17 +13,6 @@ root.innerHTML = `
     <button id="service-toggle" class="button primary compact" disabled></button>
     <span id="status-pill" class="pill"><i></i><span></span></span>
     <div class="spacer"></div>
-    <div class="segmented-switch theme-switch" role="group" aria-label="Theme">
-      <button type="button" data-theme="light" title="Light" aria-label="Light">
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-      </button>
-      <button type="button" data-theme="dark" title="Dark" aria-label="Dark">
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-      </button>
-      <button type="button" data-theme="system" title="System" aria-label="System">
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-      </button>
-    </div>
     <div class="lang-toggle" role="group" aria-label="Language">
       <button type="button" data-lang="zh">中</button>
       <button type="button" data-lang="en">EN</button>
@@ -53,6 +42,17 @@ root.innerHTML = `
     <div class="settings-card">
       <div class="settings-head">
         <h3 id="settings-title" data-i18n="proxySettings"></h3>
+        <div class="segmented-switch theme-switch" role="group" aria-label="Theme">
+          <button type="button" data-theme="light" title="Light" aria-label="Light">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          </button>
+          <button type="button" data-theme="dark" title="Dark" aria-label="Dark">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
+          <button type="button" data-theme="system" title="System" aria-label="System">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </button>
+        </div>
         <button id="close-settings" class="icon-button" title="关闭" aria-label="关闭">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
@@ -103,11 +103,9 @@ root.innerHTML = `
     </article>
 
     <section id="sdk-strip" class="sdk-strip">
-      <div class="sdk-head">
-        <div class="seg" role="group" aria-label="SDK protocol">
-          <button type="button" class="seg-btn active" data-sdk="openai">OpenAI</button>
-          <button type="button" class="seg-btn" data-sdk="anthropic">Anthropic</button>
-        </div>
+      <div class="sdk-tabs auth-tabs" role="group" aria-label="SDK protocol">
+        <button type="button" class="auth-tab active" data-sdk="openai">OpenAI</button>
+        <button type="button" class="auth-tab" data-sdk="anthropic">Anthropic</button>
         <button type="button" id="sdk-copy" class="sdk-copy-hint" data-i18n="copy"></button>
       </div>
       <div id="sdk-body" class="sdk-body">

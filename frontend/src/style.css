@@ -5,27 +5,27 @@
 
   /* Dark theme (default) */
   --bg: #0b0f0f;
-  --bg-hero: #12382e;
   --panel: #111716;
   --panel-2: #0e1312;
   --panel-3: #0b100f;
   --text: #edf4f2;
   --text-heading: #ffffff;
   --muted: #8b9b97;
-  --line: #26312f;
-  --line-strong: #303b39;
-  --line-weak: #202a28;
+  --line: #323e3b;
+  --line-strong: #42504c;
+  --line-weak: #293330;
   --accent: #58e3b3;
   --accent-hover: #75eac2;
   --accent-bg: #10251e;
   --accent-line: #2a5f4d;
   --danger: #ff8276;
+  --danger-button: #d9403b;
   --danger-bg: #281614;
   --danger-line: #673c37;
   --input-bg: #0a0e0d;
-  --button-secondary-bg: #171e1d;
-  --button-secondary-border: #33413e;
-  --button-secondary-hover: #1d2725;
+  --button-secondary-bg: #1a2220;
+  --button-secondary-border: #43524e;
+  --button-secondary-hover: #222b29;
   --shadow: #0003;
   --glow: #58e3b32b;
   --pre: #9fdcc6;
@@ -39,8 +39,7 @@
 }
 
 [data-theme="light"] {
-  --bg: #f3f7f6;
-  --bg-hero: #a8e6d2;
+  --bg: #ffffff;
   --panel: #ffffff;
   --panel-2: #f4f8f7;
   --panel-3: #eef3f2;
@@ -55,6 +54,7 @@
   --accent-bg: #e3f6ef;
   --accent-line: #8fd9bf;
   --danger: #d9382e;
+  --danger-button: #d9382e;
   --danger-bg: #fde8e6;
   --danger-line: #eeb0ab;
   --input-bg: #ffffff;
@@ -85,7 +85,7 @@ body {
   overflow: hidden;
   overscroll-behavior: none;
   color: var(--text);
-  background: radial-gradient(circle at 88% -12%, var(--bg-hero) 0, transparent 38%), var(--bg);
+  background: var(--bg);
 }
 
 button, input { font: inherit; }
@@ -284,8 +284,8 @@ h1 { font-size: 14px; letter-spacing: -.01em; color: var(--text-heading); font-w
 }
 
 .button.danger {
-  color: var(--text-heading);
-  background: var(--danger);
+  color: #ffffff;
+  background: var(--danger-button);
 }
 
 .button.danger:hover {
@@ -329,30 +329,32 @@ h1 { font-size: 14px; letter-spacing: -.01em; color: var(--text-heading); font-w
 .auth-panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
   min-width: 0;
-  padding: 10px 12px;
+  padding: 0;
   overflow: hidden;
   /* 按内容高度，不把中间空白撑满整页 */
   flex: 0 0 auto;
+  border-radius: 8px;
 }
 
+/* 卡片式 Tab：标签与下方内容共用一个边框，整体是一个盒子 */
 .auth-tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3px;
+  display: flex;
   flex: 0 0 auto;
-  padding: 2px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
   background: var(--panel-2);
 }
 
 .auth-tab {
-  min-height: 26px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 6px;
+  min-height: 30px;
+  padding: 0 16px;
+  /* 负 margin 让 tab 边框与卡片边框重合，避免两条 1px 线叠出毛边 */
+  margin: -1px 0 -1px -1px;
+  border: 1px solid transparent;
+  border-radius: 0;
   color: var(--muted);
   background: transparent;
   font-size: 11.5px;
@@ -367,10 +369,13 @@ h1 { font-size: 14px; letter-spacing: -.01em; color: var(--text-heading); font-w
   color: var(--text);
 }
 
+/* 选中标签用面板底色的下边框盖住 tab 条的分隔线，与内容区连成一体 */
 .auth-tab.active {
-  color: var(--text-heading);
+  color: var(--accent);
+  border-color: var(--line);
+  border-bottom-color: var(--panel);
   background: var(--panel);
-  box-shadow: 0 1px 3px var(--shadow);
+  box-shadow: none;
 }
 
 /* Both auth panes occupy the same grid cell so tab switch never changes height. */
@@ -378,6 +383,7 @@ h1 { font-size: 14px; letter-spacing: -.01em; color: var(--text-heading); font-w
   display: grid;
   flex: 0 0 auto;
   min-height: 28px;
+  padding: 12px 12px 8px;
 }
 
 .auth-pane {
@@ -445,7 +451,7 @@ input:focus {
   justify-content: center;
   background: rgba(8, 12, 11, .45);
   backdrop-filter: blur(3px);
-  animation: toast-in .15s ease-out;
+  animation: fade-in .15s ease-out;
 }
 
 .oauth-card {
@@ -503,10 +509,12 @@ input:focus {
 
 .inline-actions {
   flex: 0 0 auto;
-  padding-top: 4px;
+  gap: 16px;
+  padding: 6px 12px 12px;
 }
 
-.inline-actions .button { flex: 1; }
+/* 主按钮按内容宽度，不再撑满整行 */
+.inline-actions .button { flex: 0 0 auto; }
 
 .progress {
   height: 3px;
@@ -538,7 +546,7 @@ input:focus {
   justify-content: center;
   background: rgba(8, 12, 11, .35);
   backdrop-filter: blur(3px);
-  animation: toast-in .15s ease-out;
+  animation: fade-in .15s ease-out;
 }
 
 .settings-card {
@@ -585,64 +593,27 @@ input:focus {
   font-size: 11px;
 }
 
-/* ── SDK 细带：可展开收起，贴在内容区底部 ── */
+/* 主题图标开关放在设置标题右侧、关闭按钮左边 */
+.settings-head .theme-switch {
+  margin-left: auto;
+}
+
+/* ── SDK 细带：与授权卡片同款的卡片式 Tab ── */
 .sdk-strip {
   flex: 0 0 auto;
-  margin-top: auto;
   border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--panel-2);
+  border-radius: 8px;
+  background: var(--panel);
   overflow: hidden;
 }
 
-.sdk-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 5px 9px;
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  text-align: left;
-  font-size: 11.5px;
-  user-select: none;
-}
-
-.seg {
-  display: inline-flex;
-  align-items: center;
-  flex: 0 0 auto;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 1px;
-}
-
-.seg-btn {
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 10.5px;
-  font-weight: 600;
-  min-height: 18px;
-  transition: .15s ease;
-}
-
-.seg-btn:hover { color: var(--text); }
-.seg-btn.active {
-  background: var(--accent-bg);
-  color: var(--accent);
-}
-
+/* 复制按钮放在 tab 条右端 */
 .sdk-copy-hint {
-  margin-left: auto;
+  margin: 0 8px 0 auto;
+  align-self: center;
   border: 0;
   background: transparent;
   color: var(--muted);
-  font: inherit;
   font-size: 10.5px;
   font-weight: 600;
   cursor: pointer;
@@ -662,23 +633,22 @@ input:focus {
 }
 
 .sdk-body {
-  border-top: 1px solid var(--line-weak);
-  padding: 6px 10px 8px;
+  padding: 8px 10px 10px;
 }
 
 .sdk-snippet {
   margin: 0;
   color: var(--pre);
-  font: 10.5px/1.5 ui-monospace, "Cascadia Code", monospace;
+  font: 10.5px/1.8 ui-monospace, "Cascadia Code", monospace;
   white-space: pre-wrap;
   word-break: break-all;
 }
 
-/* ── toast：右上角悬浮小卡片 ── */
+/* ── toast：底部居中悬浮小卡片，不遮顶栏和操作区 ── */
 .notice {
   position: fixed;
-  top: 44px;
-  right: 12px;
+  left: 50%;
+  bottom: 14px;
   z-index: 100;
   display: flex;
   align-items: center;
@@ -693,6 +663,7 @@ input:focus {
   font-size: 11.5px;
   line-height: 1.45;
   pointer-events: none;
+  transform: translateX(-50%);
   animation: toast-in .18s ease-out;
 }
 
@@ -712,8 +683,13 @@ input:focus {
 }
 
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translate(-50%, 6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .hidden { display: none !important; }
