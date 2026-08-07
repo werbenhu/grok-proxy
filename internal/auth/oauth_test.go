@@ -31,7 +31,7 @@ func TestStartDeviceAuthorization(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.DeviceCode != "device" || got.UserCode != "ABCD-EFGH" || got.Interval != 5*time.Second || got.ExpiresIn != 30*time.Minute {
+	if got.DeviceCode != "device" || got.UserCode != "ABCD-EFGH" || got.Interval != 5*time.Second || got.ExpiresIn != time.Hour {
 		t.Fatalf("authorization = %+v", got)
 	}
 }

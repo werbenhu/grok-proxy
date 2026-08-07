@@ -78,8 +78,10 @@ func (c *OAuthClient) Start(ctx context.Context) (DeviceAuthorization, error) {
 	if value.Interval <= 0 {
 		value.Interval = 5
 	}
+	// Device codes from xAI usually last ~30 minutes; when the field is
+	// missing, keep polling long enough for a full browser login + 2FA.
 	if value.ExpiresIn <= 0 {
-		value.ExpiresIn = 1800
+		value.ExpiresIn = 3600
 	}
 	return DeviceAuthorization{
 		DeviceCode: value.DeviceCode, UserCode: value.UserCode, VerificationURI: value.VerificationURI,

@@ -19,8 +19,8 @@ func main() {
 	}
 	if err := wails.Run(&options.App{
 		Title:             "GrokProxy",
-		Width:             980,
-		Height:            560,
+		Width:             600,
+		Height:            340,
 		DisableResize:     true,
 		AssetServer:       &assetserver.Options{Assets: assets},
 		BackgroundColour:  &options.RGBA{R: 11, G: 15, B: 15, A: 1},

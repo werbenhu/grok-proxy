@@ -11,10 +11,7 @@ export type MessageKey =
   | 'connectGrokFirst'
   | 'connectGrok'
   | 'apiKeyTitle'
-  | 'apiKeyDesc'
   | 'save'
-  | 'apiKeyUnset'
-  | 'apiKeySaved'
   | 'or'
   | 'deviceAuthTitle'
   | 'deviceAuthDesc'
@@ -66,10 +63,7 @@ const zh: Record<MessageKey, string> = {
   connectGrokFirst: '请先完成 Grok 授权，再启动代理',
   connectGrok: 'Grok 授权',
   apiKeyTitle: 'xAI API Key',
-  apiKeyDesc: '直接使用 api.x.ai，适合官方开发者密钥',
   save: '保存',
-  apiKeyUnset: '尚未保存',
-  apiKeySaved: '已保存 {hint}',
   or: '或',
   deviceAuthTitle: '网站授权',
   deviceAuthDesc: '通过 xAI 官方网站登录授权，无需复制 Cookie',
@@ -122,10 +116,7 @@ const en: Record<MessageKey, string> = {
   connectGrokFirst: 'Authorize Grok before starting the proxy',
   connectGrok: 'Grok Authorization',
   apiKeyTitle: 'xAI API Key',
-  apiKeyDesc: 'Use api.x.ai directly with an official developer key',
   save: 'Save',
-  apiKeyUnset: 'Not saved yet',
-  apiKeySaved: 'Saved {hint}',
   or: 'or',
   deviceAuthTitle: 'Site auth',
   deviceAuthDesc: 'Sign in via the xAI official website — no cookie copy',
