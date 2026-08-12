@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	stdruntime "runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -137,28 +138,50 @@ func (a *App) beforeClose(ctx context.Context) bool {
 }
 
 func (a *App) initSystray() {
-	go systray.Run(func() {
-		systray.SetIcon(trayIcon)
-		systray.SetTooltip("GrokProxy")
+	go func() {
+		// systray 的 Win32 实现依赖一个隐藏窗口 + GetMessage 消息循环，
+		// 二者必须始终运行在同一个 OS 线程上。energye/systray 在 init() 里
+		// 调用的 runtime.LockOSThread() 锁住的是被 wails 占用的主 goroutine，
+		// 这里的消息循环却跑在当前 goroutine 上。若不显式锁线程，Go 调度器
+		// 会在运行一段时间后（GC、线程复用等）把它迁移到其它 OS 线程，
+		// 届时 GetMessage 收不到消息：图标还在但右键菜单、双击全部失灵。
+		// 显式锁住当前 OS 线程即可避免迁移，彻底修复该问题。
+		stdruntime.LockOSThread()
+		defer stdruntime.UnlockOSThread()
 
-		a.tray.mu.Lock()
-		a.tray.show = systray.AddMenuItem("", "")
-		systray.AddSeparator()
-		a.tray.quit = systray.AddMenuItem("", "")
-		a.tray.applyLocked()
-		mShow, mQuit := a.tray.show, a.tray.quit
-		a.tray.mu.Unlock()
+		systray.Run(func() {
+			systray.SetIcon(trayIcon)
+			systray.SetTooltip("GrokProxy")
 
-		mShow.Click(func() {
-			runtime.WindowShow(a.ctx)
-			runtime.WindowUnminimise(a.ctx)
-		})
-		mQuit.Click(func() {
-			a.quitting.Store(true)
-			systray.Quit()
-			runtime.Quit(a.ctx)
-		})
-	}, nil)
+			a.tray.mu.Lock()
+			a.tray.show = systray.AddMenuItem("", "")
+			systray.AddSeparator()
+			a.tray.quit = systray.AddMenuItem("", "")
+			a.tray.applyLocked()
+			mShow, mQuit := a.tray.show, a.tray.quit
+			a.tray.mu.Unlock()
+
+			mShow.Click(func() {
+				a.showMainWindow()
+			})
+			mQuit.Click(func() {
+				a.quitting.Store(true)
+				systray.Quit()
+				runtime.Quit(a.ctx)
+			})
+
+			// 双击托盘图标打开主界面，符合 Windows 习惯，
+			// 也作为右键菜单之外的备用入口。
+			systray.SetOnDClick(func(_ systray.IMenu) {
+				a.showMainWindow()
+			})
+		}, nil)
+	}()
+}
+
+func (a *App) showMainWindow() {
+	runtime.WindowShow(a.ctx)
+	runtime.WindowUnminimise(a.ctx)
 }
 
 // SetLocale 由前端在切换语言时调用，同步更新托盘菜单文案；前端启动时
