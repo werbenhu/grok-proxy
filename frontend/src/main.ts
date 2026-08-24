@@ -42,6 +42,7 @@ root.innerHTML = `
     <div class="settings-card">
       <div class="settings-head">
         <h3 id="settings-title" data-i18n="proxySettings"></h3>
+        <span id="app-version" class="settings-version hidden"></span>
         <div class="segmented-switch theme-switch" role="group" aria-label="Theme">
           <button type="button" data-theme="light" title="Light" aria-label="Light">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
@@ -123,6 +124,8 @@ const element = <T extends HTMLElement>(id: string): T => {
 
 type AuthTab = 'api_key' | 'device'
 type SdkKind = 'openai' | 'anthropic'
+
+const DEFAULT_MODEL = 'grok-4.6'
 
 let state: AppState | undefined
 let authorization: DeviceAuthorization | undefined
@@ -231,8 +234,8 @@ function renderSdkSnippet() {
   if (!state) return
   const key = state.config.localKey || '<LOCAL_PROXY_KEY>'
   const snippet = sdkKind === 'openai'
-    ? `OPENAI_BASE_URL=${state.openaiBaseUrl}\nOPENAI_API_KEY=${key}\nOPENAI_MODEL=grok-4.5`
-    : `ANTHROPIC_BASE_URL=${state.anthropicBaseUrl}\nANTHROPIC_API_KEY=${key}\nANTHROPIC_MODEL=grok-4.5`
+    ? `OPENAI_BASE_URL=${state.openaiBaseUrl}\nOPENAI_API_KEY=${key}\nOPENAI_MODEL=${DEFAULT_MODEL}`
+    : `ANTHROPIC_BASE_URL=${state.anthropicBaseUrl}\nANTHROPIC_API_KEY=${key}\nANTHROPIC_MODEL=${DEFAULT_MODEL}`
   element('sdk-snippet').textContent = snippet
 }
 
@@ -532,7 +535,13 @@ async function bootstrap() {
   switchAuthTab(authTab)
   switchSdkKind(sdkKind)
   try {
-    render(await api.state())
+    const [next, version] = await Promise.all([api.state(), api.version()])
+    if (version) {
+      const versionLabel = element('app-version')
+      versionLabel.textContent = version
+      versionLabel.classList.remove('hidden')
+    }
+    render(next)
     window.setInterval(async () => {
       if (!busy) {
         try { render(await api.state()) } catch { /* app is closing */ }

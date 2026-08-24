@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"net/url"
@@ -19,6 +20,12 @@ import (
 	"github.com/werbenhu/grok-proxy/internal/config"
 	"github.com/werbenhu/grok-proxy/internal/service"
 )
+
+//go:embed VERSION
+var versionFile string
+
+// version is injected by release builds via -ldflags "-X main.version=...".
+var version string
 
 type App struct {
 	ctx           context.Context
@@ -189,6 +196,18 @@ func (a *App) showMainWindow() {
 func (a *App) SetLocale(locale string) { a.tray.setLocale(locale) }
 
 func (a *App) shutdown(ctx context.Context) { _ = a.service.Stop(ctx) }
+
+func appVersion() string {
+	if v := strings.TrimSpace(version); v != "" {
+		return v
+	}
+	if v := strings.TrimSpace(versionFile); v != "" {
+		return v
+	}
+	return "dev"
+}
+
+func (a *App) GetVersion() string { return appVersion() }
 
 func (a *App) GetState() service.State { return a.service.State() }
 

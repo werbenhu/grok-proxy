@@ -46,21 +46,21 @@ For Codex and other native Responses clients, use `http://127.0.0.1:8181/v1` as 
 ```bash
 export OPENAI_BASE_URL="http://127.0.0.1:8181/v1"
 export OPENAI_API_KEY="<LOCAL_PROXY_KEY>"
-export OPENAI_MODEL="grok-4.5"
+export OPENAI_MODEL="grok-4.6"
 ```
 
 ```bash
 curl http://127.0.0.1:8181/v1/responses \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <LOCAL_PROXY_KEY>" \
-  -d '{"model":"grok-4.5","input":"Hello"}'
+  -d '{"model":"grok-4.6","input":"Hello"}'
 ```
 
 ```bash
 curl http://127.0.0.1:8181/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <LOCAL_PROXY_KEY>" \
-  -d '{"model":"grok-4.5","messages":[{"role":"user","content":"Hello"}]}'
+  -d '{"model":"grok-4.6","messages":[{"role":"user","content":"Hello"}]}'
 ```
 
 ### Anthropic compatible
@@ -68,7 +68,7 @@ curl http://127.0.0.1:8181/v1/chat/completions \
 ```bash
 export ANTHROPIC_BASE_URL="http://127.0.0.1:8181"
 export ANTHROPIC_API_KEY="<LOCAL_PROXY_KEY>"
-export ANTHROPIC_MODEL="grok-4.5"
+export ANTHROPIC_MODEL="grok-4.6"
 ```
 
 ```bash
@@ -76,7 +76,7 @@ curl http://127.0.0.1:8181/v1/messages \
   -H "Content-Type: application/json" \
   -H "anthropic-version: 2023-06-01" \
   -H "x-api-key: <LOCAL_PROXY_KEY>" \
-  -d '{"model":"grok-4.5","max_tokens":512,"messages":[{"role":"user","content":"Hello"}]}'
+  -d '{"model":"grok-4.6","max_tokens":512,"messages":[{"role":"user","content":"Hello"}]}'
 ```
 
 Use the local proxy key from the **Proxy settings** panel as `<LOCAL_PROXY_KEY>`. OpenAI requests use `Authorization: Bearer <key>`; Anthropic requests may use `x-api-key: <key>`.

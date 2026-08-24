@@ -13,7 +13,7 @@
   "info": {
     "companyName": "GrokProxy",
     "productName": "GrokProxy",
-    "productVersion": "0.1.0",
+    "productVersion": "1.0.2",
     "copyright": "Copyright © 2026 GrokProxy Contributors",
     "comments": "Local OpenAI and Anthropic compatible proxy for Grok"
   }

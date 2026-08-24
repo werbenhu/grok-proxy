@@ -19,7 +19,7 @@ func TestConvertChatRequestToResponses(t *testing.T) {
 		"tools":[{"type":"function","function":{"name":"lookup","description":"lookup","parameters":{"type":"object"}}}],
 		"tool_choice":{"type":"function","function":{"name":"lookup"}}
 	}`)
-	converted, err := ConvertRequest(body, "grok-4.5", OperationChat)
+	converted, err := ConvertRequest(body, "grok-4.6", OperationChat)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +27,7 @@ func TestConvertChatRequestToResponses(t *testing.T) {
 	if err := json.Unmarshal(converted, &payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload["model"] != "grok-4.5" || payload["max_output_tokens"] != float64(512) || payload["stream"] != true {
+	if payload["model"] != "grok-4.6" || payload["max_output_tokens"] != float64(512) || payload["stream"] != true {
 		t.Fatalf("request fields = %#v", payload)
 	}
 	input := payload["input"].([]any)
@@ -160,7 +160,7 @@ func TestConvertAnthropicClaudeCodeRequestToResponses(t *testing.T) {
 		"tools":[{"name":"Read","description":"Read file","input_schema":{"type":"object"},"strict":true,"cache_control":{"type":"ephemeral"}}],
 		"mcp_servers":[{"name":"github","url":"https://example.com/mcp","authorization_token":"token"}]
 	}`)
-	converted, options, err := ConvertRequestWithOptions(body, "grok-4.5", OperationMessages)
+	converted, options, err := ConvertRequestWithOptions(body, "grok-4.6", OperationMessages)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +202,7 @@ func TestConvertAnthropicToolReferenceValidatesDeclaredTool(t *testing.T) {
 		],
 		"tools":[{"name":"SearchTools","input_schema":{"type":"object"}}]
 	}`)
-	_, _, err := ConvertRequestWithOptions(body, "grok-4.5", OperationMessages)
+	_, _, err := ConvertRequestWithOptions(body, "grok-4.6", OperationMessages)
 	if err == nil || !strings.Contains(err.Error(), `undeclared tool "Missing"`) {
 		t.Fatalf("error = %v", err)
 	}
@@ -222,7 +222,7 @@ func TestConvertAnthropicMessagesValidatesToolRelationships(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			body := []byte(`{"model":"public","max_tokens":64,"messages":` + test.messages + `}`)
-			_, _, err := ConvertRequestWithOptions(body, "grok-4.5", OperationMessages)
+			_, _, err := ConvertRequestWithOptions(body, "grok-4.6", OperationMessages)
 			if err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("error = %v", err)
 			}
@@ -234,7 +234,7 @@ func TestConvertAnthropicMessagesRejectsUnrepresentableTopK(t *testing.T) {
 	_, _, err := ConvertRequestWithOptions([]byte(`{
 		"model":"public","max_tokens":64,"top_k":10,
 		"messages":[{"role":"user","content":"hello"}]
-	}`), "grok-4.5", OperationMessages)
+	}`), "grok-4.6", OperationMessages)
 	if err == nil || !strings.Contains(err.Error(), "top_k") {
 		t.Fatalf("error = %v", err)
 	}
@@ -244,7 +244,7 @@ func TestConvertAnthropicWebSearchControls(t *testing.T) {
 	converted, _, err := ConvertRequestWithOptions([]byte(`{
 		"model":"public","max_tokens":64,"messages":[{"role":"user","content":"search"}],
 		"tools":[{"type":"web_search_20250305","name":"web_search","max_uses":3,"allowed_domains":["example.com"],"user_location":{"type":"approximate","country":"US"}}]
-	}`), "grok-4.5", OperationMessages)
+	}`), "grok-4.6", OperationMessages)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,7 +258,7 @@ func TestConvertAnthropicWebSearchControls(t *testing.T) {
 	_, _, err = ConvertRequestWithOptions([]byte(`{
 		"model":"public","max_tokens":64,"messages":[{"role":"user","content":"search"}],
 		"tools":[{"type":"web_search_20250305","name":"web_search","search_context_size":"high"}]
-	}`), "grok-4.5", OperationMessages)
+	}`), "grok-4.6", OperationMessages)
 	if err == nil || !strings.Contains(err.Error(), "search_context_size") {
 		t.Fatalf("error = %v", err)
 	}
@@ -266,7 +266,7 @@ func TestConvertAnthropicWebSearchControls(t *testing.T) {
 
 func TestConvertResponsesJSONToChatAndMessages(t *testing.T) {
 	body := []byte(`{
-		"id":"resp_1","object":"response","created_at":123,"model":"grok-4.5","status":"completed",
+		"id":"resp_1","object":"response","created_at":123,"model":"grok-4.6","status":"completed",
 		"output":[
 			{"type":"reasoning","summary":[{"type":"summary_text","text":"reason"}]},
 			{"type":"message","role":"assistant","content":[{"type":"output_text","text":"hello"}]},
@@ -300,7 +300,7 @@ func TestConvertResponsesJSONToChatAndMessages(t *testing.T) {
 
 func TestConvertResponsesJSONToMessagesThinkingAndStop(t *testing.T) {
 	body := []byte(`{
-		"id":"response-1","model":"grok-4.5","status":"completed",
+		"id":"response-1","model":"grok-4.6","status":"completed",
 		"output":[
 			{"type":"reasoning","summary":[{"type":"summary_text","text":"thought"}],"encrypted_content":"signature"},
 			{"type":"message","content":[{"type":"output_text","text":"ABCSTOPXYZ"}]},
@@ -377,11 +377,11 @@ func TestConvertResponsesJSONToMessagesNormalizesErrorType(t *testing.T) {
 func TestConvertResponsesStream(t *testing.T) {
 	stream := strings.Join([]string{
 		`event: response.created`,
-		`data: {"type":"response.created","response":{"id":"resp_1","model":"grok-4.5","status":"in_progress"}}`, "",
+		`data: {"type":"response.created","response":{"id":"resp_1","model":"grok-4.6","status":"in_progress"}}`, "",
 		`event: response.output_text.delta`,
 		`data: {"type":"response.output_text.delta","delta":"hi"}`, "",
 		`event: response.completed`,
-		`data: {"type":"response.completed","response":{"id":"resp_1","model":"grok-4.5","status":"completed","usage":{"input_tokens":3,"output_tokens":1}}}`, "", "",
+		`data: {"type":"response.completed","response":{"id":"resp_1","model":"grok-4.6","status":"completed","usage":{"input_tokens":3,"output_tokens":1}}}`, "", "",
 	}, "\n")
 	for _, operation := range []string{OperationChat, OperationMessages} {
 		converted, err := io.ReadAll(ConvertResponseStream(io.NopCloser(strings.NewReader(stream)), operation))
@@ -401,7 +401,7 @@ func TestConvertResponsesStream(t *testing.T) {
 func TestConvertResponsesStreamChatErrorIsTerminal(t *testing.T) {
 	stream := strings.Join([]string{
 		`event: response.created`,
-		`data: {"type":"response.created","response":{"id":"resp_1","model":"grok-4.5","status":"in_progress"}}`, "",
+		`data: {"type":"response.created","response":{"id":"resp_1","model":"grok-4.6","status":"in_progress"}}`, "",
 		`event: response.failed`,
 		`data: {"type":"response.failed","response":{"id":"resp_1","status":"failed","error":{"message":"upstream failed"}}}`, "",
 		`event: response.output_text.delta`,
@@ -431,7 +431,7 @@ func TestConvertResponsesStreamChatErrorIsTerminal(t *testing.T) {
 func TestConvertResponsesStreamToMessagesThinkingToolsAndStop(t *testing.T) {
 	stream := strings.Join([]string{
 		`event: response.created`,
-		`data: {"type":"response.created","response":{"id":"response-1","model":"grok-4.5","usage":{"input_tokens":3}}}`, "",
+		`data: {"type":"response.created","response":{"id":"response-1","model":"grok-4.6","usage":{"input_tokens":3}}}`, "",
 		`event: response.output_item.added`,
 		`data: {"type":"response.output_item.added","item":{"id":"reasoning-1","type":"reasoning"}}`, "",
 		`event: response.reasoning_summary_text.delta`,
@@ -489,11 +489,11 @@ func TestConvertResponsesStreamEmitsDoneOnlyToolArguments(t *testing.T) {
 func TestConvertResponsesStreamMessagesInputTokens(t *testing.T) {
 	stream := strings.Join([]string{
 		`event: response.created`,
-		`data: {"type":"response.created","response":{"id":"resp_1","model":"grok-4.5","status":"in_progress"}}`, "",
+		`data: {"type":"response.created","response":{"id":"resp_1","model":"grok-4.6","status":"in_progress"}}`, "",
 		`event: response.output_text.delta`,
 		`data: {"type":"response.output_text.delta","delta":"hello"}`, "",
 		`event: response.completed`,
-		`data: {"type":"response.completed","response":{"id":"resp_1","model":"grok-4.5","status":"completed","usage":{"input_tokens":194,"output_tokens":7}}}`, "", "",
+		`data: {"type":"response.completed","response":{"id":"resp_1","model":"grok-4.6","status":"completed","usage":{"input_tokens":194,"output_tokens":7}}}`, "", "",
 	}, "\n")
 	converted, err := io.ReadAll(ConvertResponseStream(io.NopCloser(strings.NewReader(stream)), OperationMessages))
 	if err != nil {

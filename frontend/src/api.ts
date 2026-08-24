@@ -8,6 +8,15 @@ function app() {
 
 export const api = {
   state: (): Promise<AppState> => app().GetState(),
+  version: async (): Promise<string> => {
+    try {
+      const value = await app().GetVersion()
+      return typeof value === 'string' ? value.trim() : ''
+    } catch {
+      // vite 浏览器开发模式没有 Wails 绑定。
+      return ''
+    }
+  },
   save: (settings: Settings): Promise<AppState> => app().SaveSettings(settings),
   start: (): Promise<AppState> => app().StartProxy(),
   stop: (): Promise<AppState> => app().StopProxy(),

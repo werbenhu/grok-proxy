@@ -78,6 +78,26 @@ func TestAppStateShowsLocalKeyAndRedactsUpstreamSecrets(t *testing.T) {
 	}
 }
 
+func TestGetVersionUsesVERSIONFile(t *testing.T) {
+	want := strings.TrimSpace(versionFile)
+	if want == "" {
+		t.Fatal("embedded VERSION is empty")
+	}
+	got := NewAppWithService(nil).GetVersion()
+	if got != want {
+		t.Fatalf("GetVersion() = %q, want %q", got, want)
+	}
+}
+
+func TestGetVersionPrefersInjectedVersion(t *testing.T) {
+	old := version
+	version = "v9.9.9"
+	t.Cleanup(func() { version = old })
+	if got := appVersion(); got != "v9.9.9" {
+		t.Fatalf("appVersion() = %q, want %q", got, "v9.9.9")
+	}
+}
+
 func TestValidateOpenURL(t *testing.T) {
 	for _, value := range []string{"https://auth.x.ai/activate", "https://accounts.x.ai/"} {
 		if err := validateOpenURL(value); err != nil {

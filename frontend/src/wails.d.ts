@@ -6,6 +6,7 @@ declare global {
       main: {
         App: {
           GetState(): Promise<AppState>
+          GetVersion(): Promise<string>
           SaveSettings(input: Settings): Promise<AppState>
           StartProxy(): Promise<AppState>
           StopProxy(): Promise<AppState>

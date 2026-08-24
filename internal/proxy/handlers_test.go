@@ -33,9 +33,9 @@ func TestOpenAIJSONConversion(t *testing.T) {
 }
 
 func TestResponsesPassthroughPreservesImagesAndToolOutputs(t *testing.T) {
-	responseBody := `{"id":"resp_native","model":"grok-4.5","status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"done"}]}]}`
+	responseBody := `{"id":"resp_native","model":"grok-4.6","status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"done"}]}]}`
 	requestBody := `{
-  "model": "grok-4.5",
+  "model": "grok-4.6",
   "input": [
     {"role":"user","content":[{"type":"input_image","image_url":"data:image/png;base64,iVBORw0KGgoAAA"}]},
     {"type":"function_call_output","call_id":"call_1","output":[{"type":"input_text","text":"screenshot"},{"type":"input_image","image_url":"data:image/png;base64,AAAA"}]}
@@ -59,7 +59,7 @@ func TestResponsesPassthroughPreservesImagesAndToolOutputs(t *testing.T) {
 func TestResponsesStreamPassthrough(t *testing.T) {
 	stream := "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_s\"}}\n\n" +
 		"event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"Hi\"}\n\n"
-	requestBody := `{"model":"grok-4.5","stream":true,"input":"hi"}`
+	requestBody := `{"model":"grok-4.6","stream":true,"input":"hi"}`
 	up := &fakeUpstream{responses: streamResponse(stream)}
 	cfg := testConfig()
 	rec := httptest.NewRecorder()
@@ -73,7 +73,7 @@ func TestResponsesStreamPassthrough(t *testing.T) {
 }
 
 func TestResponsesCompactPassthrough(t *testing.T) {
-	requestBody := `{"model":"grok-4.5","input":[{"role":"user","content":[{"type":"input_text","text":"compact this"}]}]}`
+	requestBody := `{"model":"grok-4.6","input":[{"role":"user","content":[{"type":"input_text","text":"compact this"}]}]}`
 	responseBody := `{"id":"resp_compact","status":"completed","output":[{"type":"compaction","encrypted_content":"opaque"}]}`
 	up := &fakeUpstream{responsesCompact: func(context.Context, []byte) (*http.Response, error) {
 		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(responseBody))}, nil
@@ -95,13 +95,13 @@ func TestResponsesValidation(t *testing.T) {
 	handler := New(cfg, up)
 
 	missingInput := httptest.NewRecorder()
-	handler.ServeHTTP(missingInput, authenticatedRequest(cfg, http.MethodPost, "/v1/responses", strings.NewReader(`{"model":"grok-4.5"}`)))
+	handler.ServeHTTP(missingInput, authenticatedRequest(cfg, http.MethodPost, "/v1/responses", strings.NewReader(`{"model":"grok-4.6"}`)))
 	if missingInput.Code != http.StatusBadRequest || !strings.Contains(missingInput.Body.String(), "model and input are required") {
 		t.Fatalf("missing input=%d %s", missingInput.Code, missingInput.Body.String())
 	}
 
 	streamCompact := httptest.NewRecorder()
-	handler.ServeHTTP(streamCompact, authenticatedRequest(cfg, http.MethodPost, "/v1/responses/compact", strings.NewReader(`{"model":"grok-4.5","stream":true,"input":"hi"}`)))
+	handler.ServeHTTP(streamCompact, authenticatedRequest(cfg, http.MethodPost, "/v1/responses/compact", strings.NewReader(`{"model":"grok-4.6","stream":true,"input":"hi"}`)))
 	if streamCompact.Code != http.StatusBadRequest || !strings.Contains(streamCompact.Body.String(), "stream is not supported") {
 		t.Fatalf("stream compact=%d %s", streamCompact.Code, streamCompact.Body.String())
 	}
