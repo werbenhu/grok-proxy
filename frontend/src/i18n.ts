@@ -29,6 +29,16 @@ export type MessageKey =
   | 'localKey'
   | 'localKeyPlaceholder'
   | 'needLocalKey'
+  | 'outboundProxy'
+  | 'outboundProxyMode'
+  | 'outboundProxySystem'
+  | 'outboundProxyDirect'
+  | 'outboundProxyHost'
+  | 'outboundProxyPort'
+  | 'outboundProxyUser'
+  | 'outboundProxyPassword'
+  | 'outboundProxyPasswordKeep'
+  | 'needOutboundProxy'
   | 'saveSettings'
   | 'copy'
   | 'requests'
@@ -81,6 +91,16 @@ const zh: Record<MessageKey, string> = {
   localKey: '本地代理密钥',
   localKeyPlaceholder: '16 位本地密钥',
   needLocalKey: '本地代理密钥不能为空',
+  outboundProxy: '网络代理',
+  outboundProxyMode: '代理类型',
+  outboundProxySystem: '系统代理',
+  outboundProxyDirect: '直连',
+  outboundProxyHost: '代理地址',
+  outboundProxyPort: '代理端口',
+  outboundProxyUser: '用户名',
+  outboundProxyPassword: '密码',
+  outboundProxyPasswordKeep: '留空则保持原密码',
+  needOutboundProxy: '请填写代理地址和端口',
   saveSettings: '保存代理设置',
   copy: '复制',
   requests: '请求',
@@ -134,6 +154,16 @@ const en: Record<MessageKey, string> = {
   localKey: 'Local proxy key',
   localKeyPlaceholder: '16-char local key',
   needLocalKey: 'Local proxy key cannot be empty',
+  outboundProxy: 'Outbound proxy',
+  outboundProxyMode: 'Proxy type',
+  outboundProxySystem: 'System proxy',
+  outboundProxyDirect: 'Direct',
+  outboundProxyHost: 'Proxy host',
+  outboundProxyPort: 'Proxy port',
+  outboundProxyUser: 'Username',
+  outboundProxyPassword: 'Password',
+  outboundProxyPasswordKeep: 'Leave blank to keep',
+  needOutboundProxy: 'Enter proxy host and port',
   saveSettings: 'Save proxy settings',
   copy: 'Copy',
   requests: 'Requests',

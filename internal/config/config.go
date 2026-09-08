@@ -28,26 +28,28 @@ type OAuth struct {
 }
 
 type Config struct {
-	ListenHost string `json:"listenHost"`
-	ListenPort int    `json:"listenPort"`
-	LocalKey   string `json:"localKey,omitempty"`
-	AuthMode   string `json:"authMode,omitempty"`
-	APIKey     string `json:"apiKey,omitempty"`
-	OAuth      OAuth  `json:"oauth,omitempty"`
+	ListenHost    string        `json:"listenHost"`
+	ListenPort    int           `json:"listenPort"`
+	LocalKey      string        `json:"localKey,omitempty"`
+	AuthMode      string        `json:"authMode,omitempty"`
+	APIKey        string        `json:"apiKey,omitempty"`
+	OAuth         OAuth         `json:"oauth,omitempty"`
+	OutboundProxy OutboundProxy `json:"outboundProxy,omitempty"`
 }
 
 type PublicConfig struct {
-	ListenHost    string `json:"listenHost"`
-	ListenPort    int    `json:"listenPort"`
-	AuthMode      string `json:"authMode"`
-	HasCredential bool   `json:"hasCredential"`
-	HasAPIKey     bool   `json:"hasApiKey"`
-	HasOAuth      bool   `json:"hasOAuth"`
-	HasLocalKey   bool   `json:"hasLocalKey"`
-	APIKeyHint    string `json:"apiKeyHint,omitempty"`
-	LocalKey      string `json:"localKey,omitempty"`
-	LocalKeyHint  string `json:"localKeyHint,omitempty"`
-	OAuthExpires  string `json:"oauthExpires,omitempty"`
+	ListenHost    string              `json:"listenHost"`
+	ListenPort    int                 `json:"listenPort"`
+	AuthMode      string              `json:"authMode"`
+	HasCredential bool                `json:"hasCredential"`
+	HasAPIKey     bool                `json:"hasApiKey"`
+	HasOAuth      bool                `json:"hasOAuth"`
+	HasLocalKey   bool                `json:"hasLocalKey"`
+	APIKeyHint    string              `json:"apiKeyHint,omitempty"`
+	LocalKey      string              `json:"localKey,omitempty"`
+	LocalKeyHint  string              `json:"localKeyHint,omitempty"`
+	OAuthExpires  string              `json:"oauthExpires,omitempty"`
+	OutboundProxy PublicOutboundProxy `json:"outboundProxy"`
 }
 
 func Default() Config {
@@ -100,7 +102,6 @@ func Validate(cfg Config) error {
 	}
 	switch cfg.AuthMode {
 	case AuthModeNone:
-		return nil
 	case AuthModeAPIKey:
 		if strings.TrimSpace(cfg.APIKey) == "" {
 			return errors.New("API key mode requires xAI API key")
@@ -112,7 +113,7 @@ func Validate(cfg Config) error {
 	default:
 		return fmt.Errorf("unsupported auth mode %q", cfg.AuthMode)
 	}
-	return nil
+	return cfg.OutboundProxy.Validate()
 }
 
 func isLoopback(host string) bool {
@@ -140,6 +141,7 @@ func (cfg Config) Public() PublicConfig {
 		HasCredential: (cfg.AuthMode == AuthModeAPIKey && hasAPIKey) || (cfg.AuthMode == AuthModeOAuth && hasOAuth),
 		HasAPIKey:     hasAPIKey, HasOAuth: hasOAuth, HasLocalKey: localKey != "",
 		APIKeyHint: mask(cfg.APIKey), LocalKey: localKey, LocalKeyHint: mask(cfg.LocalKey), OAuthExpires: oauthExpires,
+		OutboundProxy: cfg.OutboundProxy.Public(),
 	}
 }
 

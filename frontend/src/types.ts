@@ -1,3 +1,11 @@
+export interface PublicOutboundProxy {
+  mode: 'system' | 'direct' | 'http' | 'https' | 'socks5'
+  host?: string
+  port?: number
+  username?: string
+  hasPassword: boolean
+}
+
 export interface PublicConfig {
   listenHost: string
   listenPort: number
@@ -10,6 +18,7 @@ export interface PublicConfig {
   localKey?: string
   localKeyHint?: string
   oauthExpires?: string
+  outboundProxy: PublicOutboundProxy
 }
 
 export interface Statistics {
@@ -30,12 +39,21 @@ export interface AppState {
   stats: Statistics
 }
 
+export interface OutboundProxySettings {
+  mode: PublicOutboundProxy['mode']
+  host?: string
+  port?: number
+  username?: string
+  password?: string
+}
+
 export interface Settings {
   listenHost: string
   listenPort: number
   authMode: string
   apiKey?: string
   localKey?: string
+  outboundProxy?: OutboundProxySettings
 }
 
 export interface DeviceAuthorization {

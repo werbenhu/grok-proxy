@@ -76,6 +76,9 @@ func TestValidateRejectsInvalidValues(t *testing.T) {
 			c.OAuth.AccessToken = "access"
 			c.OAuth.ExpiresAt = time.Now()
 		}},
+		{"bad outbound proxy", func(c *Config) {
+			c.OutboundProxy = OutboundProxy{Mode: OutboundProxyHTTP, Host: "127.0.0.1"}
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -94,12 +97,13 @@ func TestPublicNeverExposesUpstreamSecrets(t *testing.T) {
 	cfg.APIKey = "xai-secret-value"
 	cfg.LocalKey = "local-secret-value"
 	cfg.OAuth = OAuth{AccessToken: "access-secret", RefreshToken: "refresh-secret", ExpiresAt: time.Now().UTC()}
+	cfg.OutboundProxy = OutboundProxy{Mode: OutboundProxyHTTP, Host: "127.0.0.1", Port: 7890, Password: "proxy-secret"}
 	encoded, err := json.Marshal(cfg.Public())
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Local proxy key is intentionally returned for desktop UI/snippets.
-	for _, secret := range []string{"xai-secret-value", "access-secret", "refresh-secret"} {
+	for _, secret := range []string{"xai-secret-value", "access-secret", "refresh-secret", "proxy-secret"} {
 		if bytes.Contains(encoded, []byte(secret)) {
 			t.Fatalf("secret %q leaked: %s", secret, encoded)
 		}

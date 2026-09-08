@@ -42,6 +42,8 @@ type Service struct {
 	oauth     OAuthClient
 	tokens    *auth.Source
 	upstream  *upstream.Client
+	outbound  *config.Outbound
+	transport *http.Transport
 	server    *http.Server
 	listener  net.Listener
 	slot      *handlerSlot
@@ -54,6 +56,12 @@ func New(store *config.Store, oauthClient OAuthClient, httpClient *http.Client) 
 	if store == nil {
 		return nil, errors.New("config store must not be nil")
 	}
+	var outbound *config.Outbound
+	var transport *http.Transport
+	if httpClient == nil {
+		outbound = config.NewOutbound(store.Current().OutboundProxy)
+		httpClient, transport = config.NewHTTPClient(outbound)
+	}
 	if oauthClient == nil {
 		oauthClient = auth.NewOAuthClient(httpClient)
 	}
@@ -63,7 +71,7 @@ func New(store *config.Store, oauthClient OAuthClient, httpClient *http.Client) 
 	if store.Current().Public().HasCredential {
 		status = StatusStopped
 	}
-	service := &Service{store: store, oauth: oauthClient, status: status}
+	service := &Service{store: store, oauth: oauthClient, outbound: outbound, transport: transport, status: status}
 	service.tokens = auth.NewSource(oauthClient, store)
 	service.upstream = upstream.NewClient(httpClient, service)
 	return service, nil
@@ -145,6 +153,7 @@ func (s *Service) Save(ctx context.Context, input Settings) (State, error) {
 			s.mu.Unlock()
 			return s.State(), err
 		}
+		s.applyOutboundProxy(candidate)
 		handler := proxy.New(candidate, s.upstream)
 		s.slot.Store(handler)
 		s.handler = handler
@@ -185,6 +194,7 @@ func (s *Service) Save(ctx context.Context, input Settings) (State, error) {
 			return s.State(), err
 		}
 		s.startLocked(candidate, listener)
+		s.applyOutboundProxy(candidate)
 		s.mu.Unlock()
 		shutdownServer(ctx, oldServer)
 		return s.State(), nil
@@ -195,6 +205,7 @@ func (s *Service) Save(ctx context.Context, input Settings) (State, error) {
 		s.mu.Unlock()
 		return s.State(), err
 	}
+	s.applyOutboundProxy(candidate)
 	if candidate.Public().HasCredential {
 		s.status = StatusStopped
 	} else {
@@ -248,7 +259,26 @@ func applySettings(current config.Config, input Settings) config.Config {
 	if next.AuthMode == config.AuthModeOAuth {
 		next.APIKey = ""
 	}
+	if input.OutboundProxy != nil {
+		next.OutboundProxy = *input.OutboundProxy
+		next.OutboundProxy.Mode = strings.TrimSpace(next.OutboundProxy.Mode)
+		next.OutboundProxy.Host = strings.TrimSpace(next.OutboundProxy.Host)
+		next.OutboundProxy.Username = strings.TrimSpace(next.OutboundProxy.Username)
+		if next.OutboundProxy.Password == "" {
+			next.OutboundProxy.Password = current.OutboundProxy.Password
+		}
+	}
 	return next
+}
+
+func (s *Service) applyOutboundProxy(cfg config.Config) {
+	if s.outbound == nil {
+		return
+	}
+	s.outbound.Set(cfg.OutboundProxy)
+	if s.transport != nil {
+		s.transport.CloseIdleConnections()
+	}
 }
 
 func (s *Service) State() State {

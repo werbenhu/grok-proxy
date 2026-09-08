@@ -27,11 +27,12 @@ type State struct {
 }
 
 type Settings struct {
-	ListenHost string `json:"listenHost"`
-	ListenPort int    `json:"listenPort"`
-	AuthMode   string `json:"authMode"`
-	APIKey     string `json:"apiKey,omitempty"`
-	LocalKey   string `json:"localKey,omitempty"`
+	ListenHost    string                `json:"listenHost"`
+	ListenPort    int                   `json:"listenPort"`
+	AuthMode      string                `json:"authMode"`
+	APIKey        string                `json:"apiKey,omitempty"`
+	LocalKey      string                `json:"localKey,omitempty"`
+	OutboundProxy *config.OutboundProxy `json:"outboundProxy,omitempty"`
 }
 
 type ConnectionTest struct {

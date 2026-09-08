@@ -36,7 +36,7 @@ On macOS, if Gatekeeper blocks the first launch, right-click the app in Finder a
 
 1. Open GrokProxy.
 2. Use **Site auth** to sign in to Grok, or switch to **xAI API Key** and paste a key.
-3. Keep the default listen address and start the proxy.
+3. Keep the default listen address and start the proxy. Settings can also configure an HTTP / HTTPS / SOCKS5 outbound proxy for reaching xAI (defaults to system environment variables).
 4. Point your client's Base URL at the local address shown in the UI.
 
 ### OpenAI compatible
