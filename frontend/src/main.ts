@@ -2,7 +2,7 @@ import './style.css'
 import { api } from './api'
 import { getLocale, setLocale, t, type Locale } from './i18n'
 import { getTheme, setTheme, initTheme, type Theme } from './theme'
-import type { AppState, DeviceAuthorization } from './types'
+import type { AppState, DeviceAuthorization, PublicOutboundProxy } from './types'
 
 const root = document.querySelector<HTMLDivElement>('#root')
 if (!root) throw new Error(t('missingRoot'))
@@ -59,18 +59,55 @@ root.innerHTML = `
         </button>
       </div>
       <div class="settings-body">
-        <label class="field">
-          <span data-i18n="listenHost"></span>
-          <input id="listen-host" value="127.0.0.1" spellcheck="false" />
-        </label>
-        <label class="field">
-          <span data-i18n="port"></span>
-          <input id="listen-port" type="number" min="1" max="65535" value="8181" />
-        </label>
+        <div class="field-row">
+          <label class="field">
+            <span data-i18n="listenHost"></span>
+            <input id="listen-host" value="127.0.0.1" spellcheck="false" />
+          </label>
+          <label class="field field-narrow">
+            <span data-i18n="port"></span>
+            <input id="listen-port" type="number" min="1" max="65535" value="8181" />
+          </label>
+        </div>
         <label class="field">
           <span data-i18n="localKey"></span>
           <input id="local-key" type="text" autocomplete="off" spellcheck="false" data-i18n-placeholder="localKeyPlaceholder" />
         </label>
+        <div class="settings-section">
+          <span class="settings-section-title" data-i18n="outboundProxy"></span>
+          <label class="field">
+            <span data-i18n="outboundProxyMode"></span>
+            <select id="outbound-proxy-mode">
+              <option value="system" data-i18n="outboundProxySystem"></option>
+              <option value="direct" data-i18n="outboundProxyDirect"></option>
+              <option value="http">HTTP</option>
+              <option value="https">HTTPS</option>
+              <option value="socks5">SOCKS5</option>
+            </select>
+          </label>
+          <div id="outbound-proxy-fields" class="hidden">
+            <div class="field-row">
+              <label class="field">
+                <span data-i18n="outboundProxyHost"></span>
+                <input id="outbound-proxy-host" spellcheck="false" autocomplete="off" />
+              </label>
+              <label class="field field-narrow">
+                <span data-i18n="outboundProxyPort"></span>
+                <input id="outbound-proxy-port" type="number" min="1" max="65535" />
+              </label>
+            </div>
+            <div class="field-row field-row-even">
+              <label class="field">
+                <span data-i18n="outboundProxyUser"></span>
+                <input id="outbound-proxy-user" spellcheck="false" autocomplete="off" />
+              </label>
+              <label class="field">
+                <span data-i18n="outboundProxyPassword"></span>
+                <input id="outbound-proxy-password" type="password" autocomplete="new-password" data-i18n-placeholder="outboundProxyPasswordKeep" />
+              </label>
+            </div>
+          </div>
+        </div>
       </div>
       <button id="save-settings" class="button primary wide" data-i18n="saveSettings"></button>
     </div>
@@ -124,6 +161,16 @@ const element = <T extends HTMLElement>(id: string): T => {
 
 type AuthTab = 'api_key' | 'device'
 type SdkKind = 'openai' | 'anthropic'
+type OutboundMode = PublicOutboundProxy['mode']
+
+function isExplicitOutbound(mode: string): mode is Exclude<OutboundMode, 'system' | 'direct'> {
+  return mode === 'http' || mode === 'https' || mode === 'socks5'
+}
+
+function syncOutboundFields() {
+  const mode = element<HTMLSelectElement>('outbound-proxy-mode').value
+  element('outbound-proxy-fields').classList.toggle('hidden', !isExplicitOutbound(mode))
+}
 
 const DEFAULT_MODEL = 'grok-4.6'
 
@@ -260,6 +307,15 @@ function render(next: AppState) {
     element<HTMLInputElement>('listen-host').value = next.config.listenHost
     element<HTMLInputElement>('listen-port').value = String(next.config.listenPort)
     element<HTMLInputElement>('local-key').value = next.config.localKey ?? ''
+    const outbound = next.config.outboundProxy
+    element<HTMLSelectElement>('outbound-proxy-mode').value = outbound?.mode || 'system'
+    element<HTMLInputElement>('outbound-proxy-host').value = outbound?.host ?? ''
+    element<HTMLInputElement>('outbound-proxy-port').value = outbound?.port ? String(outbound.port) : ''
+    element<HTMLInputElement>('outbound-proxy-user').value = outbound?.username ?? ''
+    const password = element<HTMLInputElement>('outbound-proxy-password')
+    password.value = ''
+    password.placeholder = outbound?.hasPassword ? t('outboundProxyPasswordKeep') : ''
+    syncOutboundFields()
   }
 
   renderSdkSnippet()
@@ -389,16 +445,28 @@ element('api-key').addEventListener('keydown', (event) => {
 
 // Any keystroke in the settings fields marks a draft; polling keeps it
 // untouched until the save succeeds (which clears the flag below).
-for (const id of ['listen-host', 'listen-port', 'local-key']) {
+for (const id of ['listen-host', 'listen-port', 'local-key', 'outbound-proxy-host', 'outbound-proxy-port', 'outbound-proxy-user', 'outbound-proxy-password']) {
   element<HTMLInputElement>(id).addEventListener('input', () => {
     settingsDirty = true
   })
 }
 
+element<HTMLSelectElement>('outbound-proxy-mode').addEventListener('change', () => {
+  settingsDirty = true
+  syncOutboundFields()
+})
+
 element('save-settings').addEventListener('click', () => {
   const localKeyValue = element<HTMLInputElement>('local-key').value.trim()
   if (!localKeyValue) {
     showNotice(t('needLocalKey'), 'error')
+    return
+  }
+  const mode = element<HTMLSelectElement>('outbound-proxy-mode').value as OutboundMode
+  const host = element<HTMLInputElement>('outbound-proxy-host').value.trim()
+  const port = Number(element<HTMLInputElement>('outbound-proxy-port').value)
+  if (isExplicitOutbound(mode) && (!host || !port)) {
+    showNotice(t('needOutboundProxy'), 'error')
     return
   }
   void run(
@@ -407,6 +475,13 @@ element('save-settings').addEventListener('click', () => {
       listenPort: Number(element<HTMLInputElement>('listen-port').value),
       authMode: state?.config.authMode ?? '',
       localKey: localKeyValue,
+      outboundProxy: {
+        mode,
+        host,
+        port: port || 0,
+        username: element<HTMLInputElement>('outbound-proxy-user').value.trim(),
+        password: element<HTMLInputElement>('outbound-proxy-password').value,
+      },
     }),
     'settingsSaved',
   ).then((saved) => {
@@ -534,6 +609,7 @@ async function bootstrap() {
   applyStaticI18n()
   switchAuthTab(authTab)
   switchSdkKind(sdkKind)
+  syncOutboundFields()
   try {
     const [next, version] = await Promise.all([api.state(), api.version()])
     if (version) {

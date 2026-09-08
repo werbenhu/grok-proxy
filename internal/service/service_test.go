@@ -229,6 +229,54 @@ func TestRefreshAuthLeavesFreshOrNonOAuthCredentialAlone(t *testing.T) {
 	}
 }
 
+func TestSaveOutboundProxyKeepsPasswordAndAppliesResolver(t *testing.T) {
+	cfg := config.Default()
+	cfg.OutboundProxy = config.OutboundProxy{Mode: config.OutboundProxyHTTP, Host: "127.0.0.1", Port: 7890, Password: "keep-me"}
+	service := newTestService(t, cfg, &fakeOAuth{})
+	state, err := service.Save(context.Background(), Settings{
+		ListenHost: cfg.ListenHost,
+		ListenPort: cfg.ListenPort,
+		OutboundProxy: &config.OutboundProxy{
+			Mode: config.OutboundProxySOCKS5, Host: "10.0.0.1", Port: 1080, Username: "u",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Config.OutboundProxy.Mode != config.OutboundProxySOCKS5 || state.Config.OutboundProxy.Host != "10.0.0.1" || !state.Config.OutboundProxy.HasPassword {
+		t.Fatalf("public=%+v", state.Config.OutboundProxy)
+	}
+	stored := service.store.Current().OutboundProxy
+	if stored.Password != "keep-me" || stored.Username != "u" {
+		t.Fatalf("stored=%+v", stored)
+	}
+	req, err := http.NewRequest(http.MethodGet, "https://api.x.ai/v1/models", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyURL, err := service.outbound.Proxy(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if proxyURL == nil || proxyURL.Scheme != "socks5h" || proxyURL.Host != "10.0.0.1:1080" {
+		t.Fatalf("resolver=%v", proxyURL)
+	}
+}
+
+func TestSaveWithoutOutboundProxyLeavesExisting(t *testing.T) {
+	cfg := config.Default()
+	cfg.OutboundProxy = config.OutboundProxy{Mode: config.OutboundProxyHTTP, Host: "127.0.0.1", Port: 7890}
+	service := newTestService(t, cfg, &fakeOAuth{})
+	_, err := service.Save(context.Background(), Settings{ListenHost: "127.0.0.1", ListenPort: cfg.ListenPort, AuthMode: config.AuthModeAPIKey, APIKey: "xai-key"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored := service.store.Current()
+	if stored.OutboundProxy.Mode != config.OutboundProxyHTTP || stored.OutboundProxy.Host != "127.0.0.1" {
+		t.Fatalf("stored=%+v", stored.OutboundProxy)
+	}
+}
+
 func newTestService(t *testing.T, cfg config.Config, oauthClient OAuthClient) *Service {
 	t.Helper()
 	store := config.NewStore(filepath.Join(t.TempDir(), "config.json"))
